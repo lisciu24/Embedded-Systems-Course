@@ -4,7 +4,7 @@
 #include "LPC17xx.h"
 #include <stdint.h>
 
-void int_to_str(uint32_t num, char *str, uint32_t base) {
+void int_to_str(int32_t num, char *str, uint32_t base) {
   uint32_t i = 0, neg = 0;
 
   if (num == 0) {
@@ -19,7 +19,8 @@ void int_to_str(uint32_t num, char *str, uint32_t base) {
   }
 
   while (num != 0) {
-    str[i++] = (num % base) + '0';
+	uint8_t tmp = (num % base);
+	str[i++] = (tmp < 10 ? tmp + '0' : tmp - 10 + 'A');
     num /= base;
   }
 
