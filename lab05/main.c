@@ -182,8 +182,8 @@ void draw_text(const char *str, uint16_t x, uint16_t y, uint16_t color) {
   }
 }
 
-volatile uint32_t offset_y = 0, offset_x = 0;
-float scale_y = 1, scale_x = 0;
+volatile int32_t offset_y = 0, offset_x = 0;
+volatile float scale_y = 1, scale_x = 1;
 
 void TP_get_mean_XY(volatile uint32_t *x, volatile uint32_t *y) {
 	uint32_t samples = 50;
@@ -241,8 +241,8 @@ void TP_config() {
 }
 
 void TP_to_LCD(uint32_t tp_x, uint32_t tp_y, uint32_t *lcd_x, uint32_t *lcd_y) {
-  *lcd_x = tp_y * scale_x + offset_x - 10;
-  *lcd_y = tp_x * scale_y + offset_y - 10;
+  *lcd_x = tp_y * scale_x + offset_x;
+  *lcd_y = tp_x * scale_y + offset_y;
 }
 
 void EINT0_init(void) {
