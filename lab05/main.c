@@ -27,6 +27,16 @@ typedef struct Point_t {
   uint16_t y;
 } Point;
 
+uint16_t fix_color(uint16_t color) {
+  uint16_t fixed = 0;
+	for(uint32_t i = 0; i < 8; i++) {
+    uint16_t lsb = color & (1 << i);
+    uint16_t msb = color & (1 << 15 - i);
+    fixed |= (lsb << 15 - 2 * i) | (msb >> 15 - 2 * i);
+	}
+	return fixed;
+}
+
 void reset_window() {
   lcdWriteReg(HADRPOS_RAM_START, 0);
   lcdWriteReg(HADRPOS_RAM_END, LCD_MAX_X);
@@ -166,8 +176,8 @@ void draw_char(uint8_t chr, uint16_t x, uint16_t y, uint16_t color) {
   for (uint32_t i = 0; i < 16; i++) {
     for (uint32_t j = 0; j < 8; j++) { 
       uint8_t mask = 1 << (7 - j);
-      uint16_t bc = LCDBlack;
-      lcdWriteData(mask & ascii_char[i] ? color : bc);
+      uint16_t bc = lcdReadReg(DATA_RAM);
+      lcdWriteData(mask & ascii_char[i] ? color : fix_color(bc));
     }
   }
   
@@ -183,7 +193,7 @@ void draw_text(const char *str, uint16_t x, uint16_t y, uint16_t color) {
 }
 
 volatile int32_t offset_y = 0, offset_x = 0;
-volatile float scale_y = 1, scale_x = 1;
+volatile int32_t scale_y = 1, scale_x = 1;
 
 void TP_get_mean_XY(volatile uint32_t *x, volatile uint32_t *y) {
 	uint32_t samples = 50;
@@ -214,6 +224,7 @@ void TP_config() {
 	  sprintf(buff, "tx: %d ty: %d lx: %d ly: %d\n\r", tx1, ty1, x1, y1);
 	UART_write_string(buff);
   
+  fill_screen_fast(LCDBlueSea);
   wait(1000);
   
   fill_screen_fast(LCDBlack);
@@ -230,19 +241,19 @@ void TP_config() {
   sprintf(buff, "tx: %d ty: %d lx: %d ly: %d\n\r", tx2, ty2, x2, y2);
 	UART_write_string(buff);
 
-  scale_x = (float)(x2 - x1) / (ty2 - ty1);
-  scale_y = (float)(y2 - y1) / (tx2 - tx1);
+  scale_x = (x2 - x1) * 10000 / (ty2 - ty1);
+  scale_y = (y2 - y1) * 10000 / (tx2 - tx1);
 
-  offset_x = x1 - scale_x * ty1;
-  offset_y = y1 - scale_y * tx1;
+  offset_x = x1 - scale_x * ty1 / 10000;
+  offset_y = y1 - scale_y * tx1 / 10000;
   
-  sprintf(buff, "sx: %d sy: %d ox: %d oy: %d\n\r", (int)scale_x, (int)scale_y, offset_x, offset_y);
+  sprintf(buff, "sx: %d sy: %d ox: %d oy: %d\n\r", scale_x, scale_y, offset_x, offset_y);
 	UART_write_string(buff);
 }
 
 void TP_to_LCD(uint32_t tp_x, uint32_t tp_y, uint32_t *lcd_x, uint32_t *lcd_y) {
-  *lcd_x = tp_y * scale_x + offset_x;
-  *lcd_y = tp_x * scale_y + offset_y;
+  *lcd_x = tp_y * scale_x / 10000 + offset_x;
+  *lcd_y = tp_x * scale_y / 10000 + offset_y;
 }
 
 void EINT0_init(void) {
