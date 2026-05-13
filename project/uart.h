@@ -80,4 +80,4 @@ void UART_init_reg(void) {
   LPC_PINCON->PINMODE_OD0 &= (~(0x01 << 2) & ~(0x01 << 3)); // optional
 }
 
-#endif
+#endif //UART_H
