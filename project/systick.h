@@ -8,10 +8,10 @@ void SysTick_Handler(void) {
 	ticks++;
 }
 
-void SYSTICK_wait(uint32_t _ticks) {
-	uint32_t stop = ticks + _ticks;
-	while(ticks != stop) 
-		continue;
+void SYSTICK_wait(uint32_t delay) {
+	uint32_t start = ticks;
+	while((ticks - start) < delay)
+		;
 }
 
 void SYSTICK_init(void) {
