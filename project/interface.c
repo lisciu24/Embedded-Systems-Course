@@ -4,6 +4,198 @@
 #include "calligraphy.h"
 #include "dma.h"
 #include "systick.h"
+#include <stdbool.h>
+
+
+// https://www.geeksforgeeks.org/c/how-to-create-typedef-for-function-pointer-in-c/
+typedef void (*ButtonCallback)(void); // Typedef for a Function Pointer in C
+
+
+typedef struct
+{
+    uint16_t x;
+    uint16_t y;
+    uint16_t width;
+    uint16_t height;
+
+    uint16_t bg_color;
+    uint16_t text_color;
+
+    const char *label;
+
+    ButtonCallback on_click;
+
+} Button;
+
+// draws button using provided Button struct
+void button_draw(Button *btn, bool with_text = true, bool text_vertical = true)
+{
+    fill_rect(
+        btn->x,
+        btn->y,
+        btn->width,
+        btn->height,
+        btn->bg_color
+    );
+
+    if (with_text)
+    {
+        if (text_vertical)
+        {
+            draw_text_vertical(
+                btn->label,
+                btn->x + 4,
+                btn->y + 5,
+                btn->text_color,
+                btn->bg_color
+            );
+        }
+        else
+        {
+            draw_text(
+                btn->label,
+                btn->x + 5,
+                btn->y + 4,
+                btn->text_color,
+                btn->bg_color
+            );
+        }
+    }
+}
+
+
+bool button_contains(Button *btn, uint16_t px, uint16_t py)
+{
+    return (
+        px >= btn->x &&
+        px < (btn->x + btn->width) &&
+        py >= btn->y &&
+        py < (btn->y + btn->height)
+    );
+}
+
+
+void button_handle_touch(Button *btn, uint16_t px, uint16_t py)
+{
+    if (button_contains(btn, px, py))
+    {
+        if (btn->on_click != NULL)
+        {
+            btn->on_click();
+        }
+    }
+}
+
+
+void erase_button_callback(void)
+{
+    UART_write_string("ERASE\r\n");
+
+    fill_rect(
+        DRAW_MIN_X,
+        DRAW_MIN_Y,
+        DRAW_MAX_X - DRAW_MIN_X + 1,
+        DRAW_MAX_Y - DRAW_MIN_Y + 1,
+        LCDWhite
+    );
+}
+
+void fix_button_callback(void)
+{
+    UART_write_string("FIX\r\n");
+
+    uint16_t values[DRAW_MAX_Y - DRAW_MIN_Y + 1];
+
+    read_graph(
+        DRAW_MIN_X,
+        DRAW_MAX_X,
+        DRAW_MIN_Y,
+        DRAW_MAX_Y,
+        values
+    );
+
+    fill_rect(
+        DRAW_MIN_X,
+        DRAW_MIN_Y,
+        DRAW_MAX_X - DRAW_MIN_X + 1,
+        DRAW_MAX_Y - DRAW_MIN_Y + 1,
+        LCDWhite
+    );
+
+    for (uint16_t y = DRAW_MIN_Y; y <= DRAW_MAX_Y; y++)
+    {
+        draw_pixel(
+            values[y - DRAW_MIN_Y] + DRAW_MIN_X,
+            y,
+            LCDBlack
+        );
+    }
+}
+
+void dac_button_callback(void)
+{
+    UART_write_string("DAC\r\n");
+
+    lcd_graph = 1;
+}
+
+// https://www.geeksforgeeks.org/c/how-to-initialize-structures-in-c/
+// Designated Initialization
+Button erase_button =
+{
+    .x = ERASE_B_MIN_X,
+    .y = ERASE_B_MIN_Y,
+    .width  = ERASE_B_MAX_X - ERASE_B_MIN_X + 1,
+    .height = ERASE_B_MAX_Y - ERASE_B_MIN_Y + 1,
+
+    .bg_color = LCDMagenta,
+    .text_color = LCDBlack,
+
+    .label = "ERASE",
+
+    .on_click = erase_button_callback
+};
+
+Button fix_button =
+{
+    .x = FIX_B_MIN_X,
+    .y = FIX_B_MIN_Y,
+    .width  = FIX_B_MAX_X - FIX_B_MIN_X + 1,
+    .height = FIX_B_MAX_Y - FIX_B_MIN_Y + 1,
+
+    .bg_color = LCDGreen,
+    .text_color = LCDBlack,
+
+    .label = "FIX",
+
+    .on_click = fix_button_callback
+};
+
+Button dac_button =
+{
+    .x = DAC_B_MIN_X,
+    .y = DAC_B_MIN_Y,
+    .width  = DAC_B_MAX_X - DAC_B_MIN_X + 1,
+    .height = DAC_B_MAX_Y - DAC_B_MIN_Y + 1,
+
+    .bg_color = LCDCyan,
+    .text_color = LCDBlack,
+
+    .label = "DAC",
+
+    .on_click = dac_button_callback
+};
+
+
+Button *buttons[] =
+{
+    &erase_button,
+    &fix_button,
+    &dac_button
+};
+
+#define BUTTON_COUNT (sizeof(buttons) / sizeof(buttons[0]))
+
 
 // values returned are in range [0, (DRAW_MAX_X - DRAW_MIN_X)]
 void read_graph(uint16_t x_start, uint16_t x_end, uint16_t y_start, uint16_t y_end, uint16_t values[])
@@ -50,7 +242,7 @@ void read_graph(uint16_t x_start, uint16_t x_end, uint16_t y_start, uint16_t y_e
                 for (int k = l + 1; k < r; k++)
                 {
                     // interpolation equation
-                    temp_values[k] = left_val +  (k - l) * ((right_val - left_val) / (r - l));
+                    temp_values[k] = left_val + (k - l) * (right_val - left_val) / (r - l);
                 }
 
                 i = r; // jump to the one before lacking value
@@ -81,106 +273,91 @@ void read_graph(uint16_t x_start, uint16_t x_end, uint16_t y_start, uint16_t y_e
 
 extern uint32_t lcd_graph;
 
-void init_interface(void) {
-	fill_screen_fast(LCDWhite);
-	draw_rect(DRAW_MIN_X - 1, DRAW_MIN_Y - 1, DRAW_MAX_X -  DRAW_MIN_X + 3, DRAW_MAX_Y -  DRAW_MIN_Y + 3, LCDRed);// drawing board
-    fill_rect(ERASE_B_MIN_X, ERASE_B_MIN_Y, ERASE_B_MAX_X - ERASE_B_MIN_X + 1, ERASE_B_MAX_Y - ERASE_B_MIN_Y + 1, LCDMagenta);// erase button
-    const char *erase_str = "ERASE";
-    //draw_text_vertical(erase_str, ERASE_B_MIN_X + 4, ERASE_B_MIN_Y + 5, LCDBlack, LCDMagenta);
-    fill_rect(FIX_B_MIN_X, FIX_B_MIN_Y, FIX_B_MAX_X - FIX_B_MIN_X + 1, FIX_B_MAX_Y - FIX_B_MIN_Y + 1, LCDGreen);// fix the graph button
-    const char *fix_str = "FIX";
-    //draw_text_vertical(fix_str, FIX_B_MIN_X + 4, FIX_B_MIN_Y + 5, LCDBlack, LCDGreen);
-    fill_rect(DAC_B_MIN_X, DAC_B_MIN_Y, DAC_B_MAX_X - DAC_B_MIN_X + 1, DAC_B_MAX_Y - DAC_B_MIN_Y + 1, LCDCyan);// DAC button
-    const char *dac_str = "DAC";
-    //draw_text_vertical(dac_str, DAC_B_MIN_X + 4, DAC_B_MIN_Y + 5, LCDBlack, LCDGreen);
+void init_interface(void)
+{
+    fill_screen_fast(LCDWhite);
 
-    uint16_t erasing = 0;
-    uint16_t fix = 0;
-    for (;;) {
-		UART_write_string("LOOP\r\n");
-        uint32_t tx = 0, ty = 0;
+    // red border of the drawing area
+    draw_rect(
+        DRAW_MIN_X - 1,
+        DRAW_MIN_Y - 1,
+        DRAW_MAX_X - DRAW_MIN_X + 3,
+        DRAW_MAX_Y - DRAW_MIN_Y + 3,
+        LCDRed
+    );
+
+    // drawing all buttons
+    for (uint32_t i = 0; i < BUTTON_COUNT; i++)
+    {
+        button_draw(buttons[i]);
+    }
+
+    for (;;)
+    {
+        uint32_t tx = 0;
+        uint32_t ty = 0;
+
         while (LPC_GPIO0->FIOPIN & (1 << 19))
-            ;
+        {
+        }
+
         TP_get_mean_XY(&tx, &ty);
-        
-        uint32_t lx = 0, ly = 0;
+
+        uint32_t lx = 0;
+        uint32_t ly = 0;
+
         TP_to_LCD(tx, ty, &lx, &ly);
-		
-		char buff[64];
-		sprintf(buff, "%ud, %ud, %ud, %ud\r\n", tx, ty, lx, ly);
-		UART_write_string(buff);
 
-        if (lx >= ERASE_B_MIN_X && lx <= ERASE_B_MAX_X && ly >= ERASE_B_MIN_Y && ly <= ERASE_B_MAX_Y)
+        // check if any button is clicked
+        for (uint32_t i = 0; i < BUTTON_COUNT; i++)
         {
-            erasing = 1;
+            button_handle_touch(
+                buttons[i],
+                (uint16_t)lx,
+                (uint16_t)ly
+            );
         }
 
-        if (lx >= FIX_B_MIN_X && lx <= FIX_B_MAX_X && ly >= FIX_B_MIN_Y && ly <= FIX_B_MAX_Y)
+        // touch check inside drawing area
+        if (
+            lx >= DRAW_MIN_X &&
+            lx <= DRAW_MAX_X &&
+            ly >= DRAW_MIN_Y &&
+            ly <= DRAW_MAX_Y
+        )
         {
-            fix = 1;
-        }
-		
-        if (lx >= DAC_B_MIN_X && lx <= DAC_B_MAX_X && ly >= DAC_B_MIN_Y && ly <= DAC_B_MAX_Y)
-        {
-            lcd_graph = 1;
-        }
-        
-        if (lx >= DRAW_MIN_X && lx <= DRAW_MAX_X && ly >= DRAW_MIN_Y && ly <= DRAW_MAX_Y)
-        {
-			UART_write_string("DRAW\r\n");
             draw_pixel((uint16_t)lx, (uint16_t)ly, LCDBlack);
         }
 
-        if (lcd_graph == 1)
+        // sending graph info to DAC
+        if (lcd_graph)
         {
-			UART_write_string("GRAPH\r\n");
             uint16_t values[DRAW_MAX_Y - DRAW_MIN_Y + 1];
-			
-            read_graph(DRAW_MIN_X, DRAW_MAX_X, DRAW_MIN_Y, DRAW_MAX_Y, values);
-            draw_rect(DRAW_MIN_X, DRAW_MIN_Y, DRAW_MAX_X - DRAW_MIN_X + 1, DRAW_MAX_Y - DRAW_MIN_Y + 1, LCDWhite);
-            for (uint16_t x = DRAW_MIN_X; x <= DRAW_MAX_X; x++)
-            {
-                draw_pixel(x, values[x - DRAW_MIN_X] + DRAW_MIN_Y, LCDBlack);
-            }
-			
+
+            read_graph(
+                DRAW_MIN_X,
+                DRAW_MAX_X,
+                DRAW_MIN_Y,
+                DRAW_MAX_Y,
+                values
+            );
+
             DMA_stop();
-            // DAC has 10 bit resolution so value range [0,1023]
-            // DACR has DAC value on [15:6]
-            uint16_t min_v = 0; // minimum inclusive value on the graph
-            uint16_t max_v = DRAW_MAX_X - DRAW_MIN_X; // maximum inclusive value on the graph
-            // pclk 25MHz, max update rate of DAC is 1MHz
+
+            uint16_t min_v = 0;
+            uint16_t max_v = DRAW_MAX_X - DRAW_MIN_X;
+
             while (lcd_graph)
             {
-                for(uint16_t i = 0; i <= (DRAW_MAX_Y - DRAW_MIN_Y); i++)
+                for (uint16_t i = min_v; i <= max_v; i++)
                 {
-                    uint16_t dac_value = (values[i] * 1023U) / 150U;
+                    uint16_t dac_value = (values[i] * 1023U) / max_v;
+
                     LPC_DAC->DACR = DACV(dac_value);
-                    // there is 259 values
-                    //ms
-                    SYSTICK_wait(1); // hardcoded frequency of DAC from lcd
+
+                    SYSTICK_wait(1);
                 }
             }
-        }
-
-        if (fix == 1)
-        {
-			UART_write_string("FIX\r\n");
-            uint16_t values[DRAW_MAX_Y - DRAW_MIN_Y + 1];
-            read_graph(DRAW_MIN_X, DRAW_MAX_X, DRAW_MIN_Y, DRAW_MAX_Y, values);
-            draw_rect(DRAW_MIN_X, DRAW_MIN_Y, DRAW_MAX_X - DRAW_MIN_X + 1, DRAW_MAX_Y - DRAW_MIN_Y + 1, LCDWhite);
-            for (uint16_t x = DRAW_MIN_X; x <= DRAW_MAX_X; x++)
-            {
-                draw_pixel(x, values[x - DRAW_MIN_X] + DRAW_MIN_Y, LCDBlack);
-            }
-        
-            fix = 0;
-        }
-        
-        if (erasing == 1)
-        {
-			UART_write_string("ERASE\r\n");
-            draw_rect(DRAW_MIN_X, DRAW_MIN_Y, DRAW_MAX_X - DRAW_MIN_X + 1, DRAW_MAX_Y - DRAW_MIN_Y + 1, LCDWhite);
-            erasing = 0;
         }
     }
 }
