@@ -3,7 +3,7 @@
 
 #include "LPC17xx.h"
 
-void int_to_str(int32_t num, char *str, uint32_t base) {
+static void int_to_str(int32_t num, char *str, uint32_t base) {
   uint32_t i = 0, neg = 0;
 
   if (num == 0) {
@@ -37,25 +37,25 @@ void int_to_str(int32_t num, char *str, uint32_t base) {
   }
 }
 
-void UART_write_byte(uint8_t data) {
+static void UART_write_byte(uint8_t data) {
   while (!(LPC_UART0->LSR & (1 << 5)))
     ;                    // Wait for THR to be empty
   LPC_UART0->THR = data; // Send data
 }
 
-void UART_write_string(const char *str) {
+static void UART_write_string(const char *str) {
   while (*str) {
     UART_write_byte(*str++);
   }
 }
 
-uint8_t UART_read_byte(void) {
+static uint8_t UART_read_byte(void) {
   while (!(LPC_UART0->LSR & (1 << 0)))
     ;                    // Wait for data
   return LPC_UART0->RBR; // Read data
 }
 
-void UART_init_reg(void) {
+static void UART_init_reg(void) {
   LPC_SC->PCONP |= (1 << 3); // Power up UART0
 
   LPC_SC->PCLKSEL0 &= ~(0x03 << 6); // Clear PCLK_UART0

@@ -2,7 +2,6 @@
 #define INTERFACE_H
 
 #include "LPC17xx.h"
-#include "lcd.h"
 
 #define DRAW_MIN_X 30
 #define DRAW_MAX_X (LCD_MAX_X - 59)
