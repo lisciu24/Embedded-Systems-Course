@@ -7,28 +7,10 @@
 #include <stdbool.h>
 
 
-// https://www.geeksforgeeks.org/c/how-to-create-typedef-for-function-pointer-in-c/
-typedef void (*ButtonCallback)(void); // Typedef for a Function Pointer in C
-
-
-typedef struct
-{
-    uint16_t x;
-    uint16_t y;
-    uint16_t width;
-    uint16_t height;
-
-    uint16_t bg_color;
-    uint16_t text_color;
-
-    const char *label;
-
-    ButtonCallback on_click;
-
-} Button;
-
 // draws button using provided Button struct
-void button_draw(Button *btn, bool with_text = true, bool text_vertical = true)
+// with_text == true draws text in the button
+// text_vertical == true draws text vertically on the screen (from lower to higher y)
+void button_draw(Button *btn, bool with_text, bool text_vertical)
 {
     fill_rect(
         btn->x,
@@ -289,7 +271,7 @@ void init_interface(void)
     // drawing all buttons
     for (uint32_t i = 0; i < BUTTON_COUNT; i++)
     {
-        button_draw(buttons[i]);
+        button_draw(buttons[i], true, true);
     }
 
     for (;;)
