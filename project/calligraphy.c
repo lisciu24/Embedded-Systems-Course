@@ -1,6 +1,10 @@
+#include "lcd_lib/LCD_ILI9325.h"
+#include "lcd_lib/Open1768_LCD.h"
+#include "lcd_lib/asciiLib.h"
 #include "calligraphy.h"
+#include "lcd.h"
 
-void draw_char(uint8_t chr, uint16_t x, uint16_t y, uint16_t color) 
+void draw_char(uint8_t chr, uint16_t x, uint16_t y, uint16_t color, uint16_t bg_color) 
 {
     // char is 8x16 (w x h)
     // top to bottom line by line
@@ -21,18 +25,18 @@ void draw_char(uint8_t chr, uint16_t x, uint16_t y, uint16_t color)
         { 
             uint8_t mask = 1 << (7 - j);
             //fix_color(lcdReadData())
-            lcdWriteData(mask & ascii_char[i] ? color : LCDWhite);
+            lcdWriteData(mask & ascii_char[i] ? color : bg_color);
         }
     }
 
     reset_window();
 }
 
-void draw_text(const char *str, uint16_t x, uint16_t y, uint16_t color)
+void draw_text(const char *str, uint16_t x, uint16_t y, uint16_t color, uint16_t bg_color)
 {
     while (*str) 
     {
-        draw_char(*str, x, y, color);
+        draw_char(*str, x, y, color, bg_color);
         str++;
         x += 8;
     }
@@ -84,15 +88,15 @@ void draw_text_vertical(const char *str, uint16_t x, uint16_t y, uint16_t color,
 
 	// Settings for lcd vertical writing
 	uint16_t am = (1 << 3); // vertical axis is main axis
-	uint16_t id = (3 << 4); // 11 means horizontal increment and vertical increment
-	uint16_t org = (1 << 7); // 1 means autoincrement ON and works in according to I/D[1:0] setting
+	id = (3 << 4); // 11 means horizontal increment and vertical increment
+	org = (1 << 7); // 1 means autoincrement ON and works in according to I/D[1:0] setting
 	uint16_t this_entry = (0 | am | id | org);
 
 	lcdWriteReg(ENTRYM, this_entry);
 
 	while (*str)
 	{
-		draw_char_horizontal(*str, x, y, color, bg_color);
+		draw_char_vertical(*str, x, y, color, bg_color);
 		str++;
 		y += 8; // next letter on y axis
 	}

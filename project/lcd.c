@@ -1,4 +1,6 @@
 #include "lcd.h"
+#include "systick.h"
+#include "uart.h"
 
 uint16_t fix_color(uint16_t color)
 {
@@ -21,7 +23,7 @@ uint16_t read_pixel_color(uint16_t x, uint16_t y)
     // selecting data register
     lcdWriteIndex(DATA_RAM);
 
-    lcdReadData(); // dummy read 9. GRAM Address Map & Read/Write on page 79 of ILI9325 Version: 0.43
+    //lcdReadData(); // dummy read 9. GRAM Address Map & Read/Write on page 79 of ILI9325 Version: 0.43
 
     return fix_color(lcdReadData());
 }
@@ -162,8 +164,8 @@ void draw_poly(Point *points, uint32_t n, uint16_t color)
     }
 }
 
-volatile int32_t offset_y = 0, offset_x = 0;
-volatile int32_t scale_y = 850, scale_x = 420;
+volatile int32_t offset_y = -5, offset_x = -20;
+volatile int32_t scale_y = 870, scale_x = 660;
 
 void TP_get_mean_XY(volatile uint32_t *x, volatile uint32_t *y)
 {
@@ -181,7 +183,7 @@ void TP_get_mean_XY(volatile uint32_t *x, volatile uint32_t *y)
     *y /= samples;
 }
 
-void TP_config()
+void TP_config(void)
 {
     fill_screen_fast(LCDBlack);
     uint32_t x1 = 40, y1 = 40;
@@ -193,6 +195,10 @@ void TP_config()
         ;
     TP_get_mean_XY(&tx1, &ty1);
 
+	char buff[64];
+	sprintf(buff, "%d, %d\r\n", tx1, ty1);
+	UART_write_string(buff);
+	
     fill_screen_fast(LCDBlueSea);
     SYSTICK_wait(1000);
     fill_screen_fast(LCDBlack);
@@ -204,13 +210,25 @@ void TP_config()
     while (LPC_GPIO0->FIOPIN & (1 << 19))
         ;
     TP_get_mean_XY(&tx2, &ty2);
+	
+	sprintf(buff, "%d, %d\r\n", tx2, ty2);
+	UART_write_string(buff);
+	
+    fill_screen_fast(LCDBlueSea);
+    SYSTICK_wait(1000);
 
 
     scale_x = (x2 - x1) * 10000 / (ty2 - ty1);
     scale_y = (y2 - y1) * 10000 / (tx2 - tx1);
 
+	sprintf(buff, "%d, %d\r\n", scale_x, scale_y);
+	UART_write_string(buff);
+	
     offset_x = x1 - scale_x * ty1 / 10000;
     offset_y = y1 - scale_y * tx1 / 10000;
+	
+	sprintf(buff, "%d, %d\r\n", offset_x, offset_y);
+	UART_write_string(buff);
 }
 
 void TP_to_LCD(uint32_t tp_x, uint32_t tp_y, uint32_t *lcd_x, uint32_t *lcd_y) 

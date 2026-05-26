@@ -2,7 +2,6 @@
 #define INTERFACE_H
 
 #include "LPC17xx.h"
-#include "lcd.h"
 
 #define DRAW_MIN_X 30
 #define DRAW_MAX_X (LCD_MAX_X - 59)
@@ -24,7 +23,34 @@
 #define DAC_B_MIN_Y (FIX_B_MAX_Y + 5)
 #define DAC_B_MAX_Y (DAC_B_MIN_Y + 34) //width of the 3 letters where each 8 bits + 5 bits padding
 
-void read_graph(uint16_t x_start, uint16_t x_end, uint16_t y_start, uint16_t y_end, uint16_t* values);
+
+// https://www.geeksforgeeks.org/c/how-to-create-typedef-for-function-pointer-in-c/
+typedef void (*ButtonCallback)(void); // Typedef for a Function Pointer in C
+
+
+typedef struct
+{
+    uint16_t x;
+    uint16_t y;
+    uint16_t width;
+    uint16_t height;
+
+    uint16_t bg_color;
+    uint16_t text_color;
+
+    const char *label;
+
+    ButtonCallback on_click;
+
+} Button;
+
+void button_draw(Button *btn, bool with_text, bool text_vertical);
+bool button_contains(Button *btn, uint16_t px, uint16_t py);
+void button_handle_touch(Button *btn, uint16_t px, uint16_t py);
+void erase_button_callback(void);
+void fix_button_callback(void);
+void dac_button_callback(void);
+void read_graph(uint16_t x_start, uint16_t x_end, uint16_t y_start, uint16_t y_end, uint16_t values[]);
 void init_interface(void);
 
 #endif //INTERFACE_H
