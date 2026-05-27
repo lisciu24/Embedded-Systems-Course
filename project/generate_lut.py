@@ -1,7 +1,7 @@
 import math
 import matplotlib.pyplot as plt
 
-LUT_SIZE = 256
+LUT_SIZE = 50
 DAC_MAX = 1023
 
 def clamp(v, lo, hi):
