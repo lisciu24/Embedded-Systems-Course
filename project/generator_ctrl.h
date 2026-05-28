@@ -16,3 +16,4 @@ void GENCTRL_stop(void);
 void GENCTRL_start(void);
 
 #endif // GENERATOR_CTRL_H
+

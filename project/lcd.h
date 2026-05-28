@@ -28,7 +28,7 @@ void draw_line(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
 void draw_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
 void fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
 void draw_poly(Point *points, uint32_t n, uint16_t color);
-Point TP_get_mean_XY();
+Point TP_get_mean_XY(void);
 Point TP_to_LCD(const Point tp);
 void TP_config(void);
 

@@ -75,7 +75,7 @@ void draw_text_vertical(const char *str, uint16_t x, uint16_t y, uint16_t color,
 {
     // 7.2.5. Entry Mode (R03h)
 	// ILI9325 Version 0.43 page 54
-	// ENTRYM is read-only
+	// ENTRYM is write-only
 
 	// Default settings for lcd writing increment
 	// AM is 0 what means that horizontal axis is main axis to increment/decrement

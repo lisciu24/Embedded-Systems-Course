@@ -77,7 +77,7 @@ void DAC_init(void) {
 
     // Enable DMA, double buffering, time-out counter
     // TODO why bit DMA_ENA is LOW???
-    LPC_DAC->DACCTRL = 0b0110;
+    LPC_DAC->DACCTRL = 0b1110;
 
     // pclk 25MHz, max update rate 1MHz
     // 16-bit timer, allowed values 25 and bigger
@@ -99,7 +99,7 @@ void GENCTRL_function(const uint16_t fun[], uint32_t amplitude,
     GENCTRL_stop();
     DAC_set_frequency(frequency);
     for (uint32_t i = 0; i < FSAMPLE; i++) {
-        uint16_t scaled = fun[i] * CLIP_AMPLITUDE(amplitude) / 3300;
+        uint16_t scaled = fun[i] * CLIP_AMPLITUDE(amplitude) / MAX_AMPLITUDE;
         buff[i] = DACV(scaled);
     }
     GENCTRL_start();

@@ -172,7 +172,7 @@ Point TP_get_mean_XY() {
 }
 
 Calibration_Matrix cal_matrix;
-#define CALIBRATION_PRECISION 100
+#define CALIBRATION_PRECISION 1000
 
 void _calculate_calibration_matrix(Point lcd[], Point tp[]) {
     for (uint32_t i = 0; i < 3; i++) {
@@ -232,6 +232,12 @@ void TP_config(void) {
 
         fill_screen_fast(LCDBlueSea);
         SYSTICK_wait(1500);
+		
+		char buf[64];
+		sprintf(buf, "tx: %d\tty: %d ", cal_tp_points[i].x, cal_tp_points[i].y);
+		UART_write_string(buf);
+		sprintf(buf, "lx: %d\tly: %d\r\n", cal_lcd_points[i].x, cal_lcd_points[i].y);
+		UART_write_string(buf);
     }
 
     _calculate_calibration_matrix(cal_lcd_points, cal_tp_points);

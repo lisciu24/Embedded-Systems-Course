@@ -1,12 +1,13 @@
 #include "interface.h"
 #include "LPC17xx.h"
 #include "calligraphy.h"
-#include "dma.h"
 #include "lcd.h"
 #include "systick.h"
+#include "uart.h"
+#include "generator_ctrl.h"
 #include <stdbool.h>
 
-extern uint32_t lcd_graph;
+uint32_t lcd_graph;
 
 // draws button using provided Button struct
 // with_text == true draws text in the button
@@ -17,11 +18,11 @@ void button_draw(Button *btn, bool with_text, bool text_vertical) {
 
     if (with_text) {
         if (text_vertical) {
-            draw_text_vertical(btn->label, btn->x + 4, btn->y + 5,
-                               btn->text_color, btn->bg_color);
+            //draw_text_vertical(btn->label, btn->x + 4, btn->y + 5,
+                               //btn->text_color, btn->bg_color);
         } else {
-            draw_text(btn->label, btn->x + 5, btn->y + 4, btn->text_color,
-                      btn->bg_color);
+            //draw_text(btn->label, btn->x + 5, btn->y + 4, btn->text_color,
+                      //btn->bg_color);
         }
     }
 }
@@ -63,8 +64,17 @@ void fix_button_callback(void) {
 
 void dac_button_callback(void) {
     UART_write_string("DAC\r\n");
-
-    lcd_graph = 1;
+	uint16_t values[DRAW_MAX_Y - DRAW_MIN_Y + 1];
+	read_graph(DRAW_MIN_X, DRAW_MAX_X, DRAW_MIN_Y, DRAW_MAX_Y, values);
+	
+	uint16_t lut[FSAMPLE];
+	uint16_t step = (DRAW_MAX_Y - DRAW_MIN_Y + 1) * 1000 / 50;
+	uint16_t max_v = DRAW_MAX_X - DRAW_MIN_X;
+	for (uint16_t i = 0; i < 50; i++) {
+		lut[i] = (values[i * step / 1000] * 1023U) / max_v;
+	}
+	
+	GENCTRL_function(lut, MAX_AMPLITUDE, 10000);
 }
 
 // https://www.geeksforgeeks.org/c/how-to-initialize-structures-in-c/
@@ -195,37 +205,22 @@ void init_interface(void) {
         Point tp = TP_get_mean_XY();
         Point lcd = TP_to_LCD(tp);
 
+		char buf[64];
+		sprintf(buf, "lx: %d\tly: %d\r\n", lcd.x, lcd.y);
+		UART_write_string(buf);
+		
+		
         // check if any button is clicked
         for (uint32_t i = 0; i < BUTTON_COUNT; i++) {
             button_handle_touch(buttons[i], lcd.x, lcd.y);
         }
+		
 
         // touch check inside drawing area
         if (lcd.x >= DRAW_MIN_X && lcd.x <= DRAW_MAX_X && lcd.y >= DRAW_MIN_Y &&
             lcd.y <= DRAW_MAX_Y) {
+			UART_write_string("DRAW\r\n");
             draw_pixel(lcd.x, lcd.y, LCDBlack);
-        }
-
-        // sending graph info to DAC
-        if (lcd_graph) {
-            uint16_t values[DRAW_MAX_Y - DRAW_MIN_Y + 1];
-
-            read_graph(DRAW_MIN_X, DRAW_MAX_X, DRAW_MIN_Y, DRAW_MAX_Y, values);
-
-            DMA_stop();
-
-            uint16_t min_v = 0;
-            uint16_t max_v = DRAW_MAX_X - DRAW_MIN_X;
-
-            while (lcd_graph) {
-                for (uint16_t i = min_v; i <= max_v; i++) {
-                    uint16_t dac_value = (values[i] * 1023U) / max_v;
-
-                    LPC_DAC->DACR = DACV(dac_value);
-
-                    SYSTICK_wait(1);
-                }
-            }
         }
     }
 }

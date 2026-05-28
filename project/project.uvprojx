@@ -388,6 +388,11 @@
               <FilePath>.\main.c</FilePath>
             </File>
             <File>
+              <FileName>uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\uart.c</FilePath>
+            </File>
+            <File>
               <FileName>uart.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\uart.h</FilePath>
@@ -433,14 +438,24 @@
               <FilePath>.\calligraphy.h</FilePath>
             </File>
             <File>
-              <FileName>dma.c</FileName>
+              <FileName>generator_ctrl.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\dma.c</FilePath>
+              <FilePath>.\generator_ctrl.c</FilePath>
             </File>
             <File>
-              <FileName>dma.h</FileName>
+              <FileName>generator_ctrl.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\dma.h</FilePath>
+              <FilePath>.\generator_ctrl.h</FilePath>
+            </File>
+            <File>
+              <FileName>waves_lut.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\waves_lut.c</FilePath>
+            </File>
+            <File>
+              <FileName>waves_lut.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\waves_lut.h</FilePath>
             </File>
           </Files>
         </Group>
