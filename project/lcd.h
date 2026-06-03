@@ -13,8 +13,8 @@ typedef struct Point_t {
 } Point;
 
 typedef struct Calibration_Matrix_t {
-    int32_t A, B, C;
-    int32_t D, E, F;
+    int16_t A, B, C;
+    int16_t D, E, F;
 } Calibration_Matrix;
 
 uint16_t fix_color(uint16_t color);
@@ -30,6 +30,8 @@ void fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
 void draw_poly(Point *points, uint32_t n, uint16_t color);
 Point TP_get_mean_XY(void);
 Point TP_to_LCD(const Point tp);
+void TP_config_restore(void);
+void TP_config_store(void);
 void TP_config(void);
 
 #endif // LCD_H

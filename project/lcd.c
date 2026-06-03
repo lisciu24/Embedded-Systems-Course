@@ -1,7 +1,9 @@
 #include "lcd.h"
+#include "LPC17xx.h"
 #include "systick.h"
 #include "uart.h"
 #include <stdint.h>
+#include <string.h>
 
 uint16_t fix_color(uint16_t color) {
     uint16_t fixed = 0;
@@ -174,6 +176,14 @@ Point TP_get_mean_XY() {
 Calibration_Matrix cal_matrix;
 #define CALIBRATION_PRECISION 1000
 
+void TP_config_restore(void) {
+    memcpy(&cal_matrix, &LPC_RTC->GPREG0, sizeof(cal_matrix));
+}
+
+void TP_config_store(void) {
+    memcpy(&LPC_RTC->GPREG0, &cal_matrix, sizeof(cal_matrix));
+}
+
 void _calculate_calibration_matrix(Point lcd[], Point tp[]) {
     for (uint32_t i = 0; i < 3; i++) {
         lcd[i].x /= 10;
@@ -232,12 +242,13 @@ void TP_config(void) {
 
         fill_screen_fast(LCDBlueSea);
         SYSTICK_wait(1500);
-		
-		char buf[64];
-		sprintf(buf, "tx: %d\tty: %d ", cal_tp_points[i].x, cal_tp_points[i].y);
-		UART_write_string(buf);
-		sprintf(buf, "lx: %d\tly: %d\r\n", cal_lcd_points[i].x, cal_lcd_points[i].y);
-		UART_write_string(buf);
+
+        char buf[64];
+        sprintf(buf, "tx: %d\tty: %d ", cal_tp_points[i].x, cal_tp_points[i].y);
+        UART_write_string(buf);
+        sprintf(buf, "lx: %d\tly: %d\r\n", cal_lcd_points[i].x,
+                cal_lcd_points[i].y);
+        UART_write_string(buf);
     }
 
     _calculate_calibration_matrix(cal_lcd_points, cal_tp_points);

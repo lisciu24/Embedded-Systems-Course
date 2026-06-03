@@ -1,10 +1,10 @@
 #include "LPC17xx.h"
 #include "generator_ctrl.h"
-#include "waves_lut.h"
 #include "interface.h"
 #include "lcd.h"
 #include "systick.h"
 #include "uart.h"
+#include "waves_lut.h"
 
 void EINT0_init(void) {
     LPC_SC->EXTINT = 0x01;                    // Clear EINT0 interrupt flag
@@ -23,14 +23,15 @@ volatile uint32_t flag = 0;
 
 void EINT0_IRQHandler(void) {
     LPC_SC->EXTINT = 0x01; // Clear EINT0 interrupt flag
-    UART_write_string("Click!\r\n");
-	if (flag == 0) {
-		GENCTRL_function(sin_lut, 1000, 5000);
-	} else {
-		GENCTRL_function(triangle_lut, MAX_AMPLITUDE, 10000);
-	}
-	flag ^= 1;
-
+    // UART_write_string("Click!\r\n");
+    // if (flag == 0) {
+    // 	GENCTRL_function(sin_lut, 1000, 5000);
+    // } else {
+    // 	GENCTRL_function(triangle_lut, MAX_AMPLITUDE, 10000);
+    // }
+    // flag ^= 1;
+    TP_config();
+    TP_config_store();
 }
 
 int main() {
@@ -40,14 +41,15 @@ int main() {
     UART_write_string("START\n\r");
 
     GENCTRL_init();
-	GENCTRL_function(sin_lut, 1000, 5000);
+    GENCTRL_function(sin_lut, 1000, 5000);
     EINT0_init();
 
     lcdConfiguration();
     init_ILI9325();
     touchpanelInit();
 
-    TP_config();
+    TP_config_restore();
+
     init_interface();
 
     for (;;) {
@@ -57,15 +59,15 @@ int main() {
         Point tp = TP_get_mean_XY();
         Point lcd = TP_to_LCD(tp);
 
-		char buf[64];
-		sprintf(buf, "lx: %d\tly: %d\r\n", lcd.x, lcd.y);
-		UART_write_string(buf);
+        char buf[64];
+        sprintf(buf, "lx: %d\tly: %d\r\n", lcd.x, lcd.y);
+        UART_write_string(buf);
 
         // touch check inside drawing area
         if (lcd.x >= DRAW_MIN_X && lcd.x <= DRAW_MAX_X && lcd.y >= DRAW_MIN_Y &&
             lcd.y <= DRAW_MAX_Y) {
-			UART_write_string("DRAW\r\n");
+            UART_write_string("DRAW\r\n");
             draw_pixel(lcd.x, lcd.y, LCDBlack);
         }
-	}
+    }
 }
