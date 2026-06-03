@@ -61,12 +61,12 @@ uint8_t UART_read_byte(void) {
 
 void UART_read_string(char buff[], uint32_t buff_size) {
     uint8_t c = UART_read_byte();
-	UART_write_byte(c);
+    UART_write_byte(c);
     uint32_t i = 0;
     while (c != '\n' && c != '\r' && i != buff_size - 1) {
-		buff[i++] = c;
-		c = UART_read_byte();
-		UART_write_byte(c);
+        buff[i++] = c;
+        c = UART_read_byte();
+        UART_write_byte(c);
     }
     buff[i] = '\0';
 }
@@ -184,7 +184,7 @@ void parse_uart_command(char *command) {
                 UART_write_string("Missing frequency\r\n");
                 return;
             }
-			char *amp_str = strtok(NULL, ":");
+            char *amp_str = strtok(NULL, ":");
             if (amp_str == NULL) {
                 UART_write_string("Missing amplitude\r\n");
                 return;
@@ -211,9 +211,10 @@ void parse_uart_command(char *command) {
 }
 
 void UART0_IRQHandler(void) {
+    uint8_t iir = LPC_UART0->IIR;
     UART_read_string(uart_rx_buf, UART_RX_BUF_SIZE);
-	UART_write_string("\r\nREAD: ");
-	UART_write_string(uart_rx_buf);
-	UART_write_string("\r\n");
+    UART_write_string("\r\nREAD: ");
+    UART_write_string(uart_rx_buf);
+    UART_write_string("\r\n");
     parse_uart_command(uart_rx_buf);
 }
