@@ -15,4 +15,5 @@ void SYSTICK_init(void) {
 	SystemInit();
 	// set interrupt to 1 ms
 	SysTick_Config(SystemCoreClock / 1000);
+	NVIC_SetPriority(SysTick_IRQn, 0);
 }

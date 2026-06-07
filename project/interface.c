@@ -18,11 +18,11 @@ void button_draw(Button *btn, bool with_text, bool text_vertical) {
 
     if (with_text) {
         if (text_vertical) {
-            //draw_text_vertical(btn->label, btn->x + 4, btn->y + 5,
-                               //btn->text_color, btn->bg_color);
+            draw_text_vertical(btn->label, btn->x + 4, btn->y + 5,
+                               btn->text_color, btn->bg_color);
         } else {
-            //draw_text(btn->label, btn->x + 5, btn->y + 4, btn->text_color,
-                      //btn->bg_color);
+            draw_text(btn->label, btn->x + 5, btn->y + 4, btn->text_color,
+                      btn->bg_color);
         }
     }
 }

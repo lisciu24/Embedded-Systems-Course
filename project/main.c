@@ -16,6 +16,7 @@ void EINT0_init(void) {
     LPC_PINCON->PINMODE4 &= ~(0x03 << 20);    // Set P2.10 to pull-up mode
     LPC_PINCON->PINMODE_OD2 &= ~(0x01 << 10); // Set P2.10 to normal mode
     LPC_SC->EXTINT = 0x01;                    // Clear EINT0 interrupt flag
+	NVIC_SetPriority(EINT0_IRQn, 31);
     NVIC_EnableIRQ(EINT0_IRQn);               // Enable EINT0 interrupt in NVIC
 }
 

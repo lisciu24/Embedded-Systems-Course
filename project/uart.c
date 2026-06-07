@@ -165,7 +165,8 @@ UARTWaveMap mapping_table[] = {
 
 #define UART_RX_BUF_SIZE 64
 
-volatile char uart_rx_buf[UART_RX_BUF_SIZE];
+static volatile char uart_rx_buf[UART_RX_BUF_SIZE];
+static volatile uint16_t uart_rx_idx = 0;
 
 void parse_uart_command(char *command) {
     char *token;
@@ -211,10 +212,24 @@ void parse_uart_command(char *command) {
 }
 
 void UART0_IRQHandler(void) {
-    uint8_t iir = LPC_UART0->IIR;
-    UART_read_string(uart_rx_buf, UART_RX_BUF_SIZE);
-    UART_write_string("\r\nREAD: ");
-    UART_write_string(uart_rx_buf);
-    UART_write_string("\r\n");
-    parse_uart_command(uart_rx_buf);
+    uint32_t iir = LPC_UART0->IIR;
+	if (iir & 1) return;
+    uint8_t c = UART_read_byte();
+
+    if (c == '\n' || c == '\r') // command from uart ends with \n
+    {
+        uart_rx_buf[uart_rx_idx] = '\0';
+        uart_rx_idx = 0;
+		
+		UART_write_string("\r\nREAD: ");
+		UART_write_string((char*)uart_rx_buf);
+		UART_write_string("\r\n");
+		parse_uart_command((char*)uart_rx_buf);
+
+    } else if (uart_rx_idx < UART_RX_BUF_SIZE - 1) {
+		uart_rx_buf[uart_rx_idx++] = c;
+	} else {
+		UART_write_string("UART_RX_BUF_SIZE - exceeded size of rx buffer\r\n");
+		uart_rx_idx = 0;
+    }
 }
