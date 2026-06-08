@@ -16,21 +16,14 @@ void EINT0_init(void) {
     LPC_PINCON->PINMODE4 &= ~(0x03 << 20);    // Set P2.10 to pull-up mode
     LPC_PINCON->PINMODE_OD2 &= ~(0x01 << 10); // Set P2.10 to normal mode
     LPC_SC->EXTINT = 0x01;                    // Clear EINT0 interrupt flag
-	NVIC_SetPriority(EINT0_IRQn, 31);
-    NVIC_EnableIRQ(EINT0_IRQn);               // Enable EINT0 interrupt in NVIC
+    NVIC_SetPriority(EINT0_IRQn, 31);
+    NVIC_EnableIRQ(EINT0_IRQn); // Enable EINT0 interrupt in NVIC
 }
 
 volatile uint32_t flag = 0;
 
 void EINT0_IRQHandler(void) {
     LPC_SC->EXTINT = 0x01; // Clear EINT0 interrupt flag
-    // UART_write_string("Click!\r\n");
-    // if (flag == 0) {
-    // 	GENCTRL_function(sin_lut, 1000, 5000);
-    // } else {
-    // 	GENCTRL_function(triangle_lut, MAX_AMPLITUDE, 10000);
-    // }
-    // flag ^= 1;
     TP_config();
     TP_config_store();
 }

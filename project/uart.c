@@ -1,13 +1,12 @@
 #include "uart.h"
-#include "LPC17xx.h"
-#include "generator_ctrl.h"
-#include "waves_lut.h"
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include "tokenizer.h"
 
-void int_to_str(int32_t num, char *str, uint32_t base) {
+#define UART_RX_BUF_SIZE 64
+
+static volatile char uart_rx_buf[UART_RX_BUF_SIZE];
+static volatile uint16_t uart_rx_idx = 0;
+
+static void int_to_str(int32_t num, char *str, uint32_t base) {
     uint32_t i = 0, neg = 0;
 
     if (num == 0) {
@@ -51,6 +50,17 @@ void UART_write_string(const char *str) {
     while (*str) {
         UART_write_byte(*str++);
     }
+}
+
+void UART_write_line(const char *str) {
+    UART_write_string(str);
+    UART_write_string("\r\n");
+}
+
+void UART_write_int(uint32_t value) {
+    char buff[16];
+    int_to_str(value, buff, 10);
+    UART_write_string(buff);
 }
 
 uint8_t UART_read_byte(void) {
@@ -99,137 +109,26 @@ void UART_init_reg(void) {
     NVIC_EnableIRQ(UART0_IRQn);
 }
 
-/*
-    Assumes that command from the UART is in format:
-    WAVE_TYPE_NAME:FREQUENCY:AMPLITUDE\n
-    where:
-    WAVE_TYPE_NAME can be: SIN, SQUARE, TRIANGLE
-    FREQUENCY is positive int in Hz (Hertz)
-    AMPLITUDE is positive int in mV (miliVolts)
-    \n is to mark the end of command
-*/
-
-typedef void (*UARTWaveFn)(uint16_t, uint16_t);
-
-void gen_sin(uint16_t frequency, uint16_t amplitude) {
-    // for debug
-    UART_write_string("SIN:");
-    char int_buf[64];
-    int_to_str(frequency, int_buf, 10);
-    UART_write_string(int_buf); // send frequency
-    UART_write_string(":");
-    int_to_str(amplitude, int_buf, 10);
-    UART_write_string(int_buf); // send amplitude
-    UART_write_string("\r\n");
-
-    GENCTRL_function(sin_lut, amplitude, frequency);
-}
-
-void gen_square(uint16_t frequency, uint16_t amplitude) {
-    // for debug
-    UART_write_string("SQUARE:");
-    char int_buf[64];
-    int_to_str(frequency, int_buf, 10);
-    UART_write_string(int_buf); // send frequency
-    UART_write_string(":");
-    int_to_str(amplitude, int_buf, 10);
-    UART_write_string(int_buf); // send amplitude
-    UART_write_string("\r\n");
-
-    GENCTRL_function(square_lut, amplitude, frequency);
-}
-
-void gen_triangle(uint16_t frequency, uint16_t amplitude) {
-    // for debug
-    UART_write_string("TRIANGLE:");
-    char int_buf[64];
-    int_to_str(frequency, int_buf, 10);
-    UART_write_string(int_buf); // send frequency
-    UART_write_string(":");
-    int_to_str(amplitude, int_buf, 10);
-    UART_write_string(int_buf); // send amplitude
-    UART_write_string("\r\n");
-
-    GENCTRL_function(triangle_lut, amplitude, frequency);
-}
-
-typedef struct {
-    const char *wave_name;
-    UARTWaveFn wave_fn;
-} UARTWaveMap;
-
-UARTWaveMap mapping_table[] = {
-    {"SIN", gen_sin}, {"SQUARE", gen_square}, {"TRIANGLE", gen_triangle}};
-
-#define MAPPING_COUNT (sizeof(mapping_table) / sizeof(mapping_table[0]))
-
-#define UART_RX_BUF_SIZE 64
-
-static volatile char uart_rx_buf[UART_RX_BUF_SIZE];
-static volatile uint16_t uart_rx_idx = 0;
-
-void parse_uart_command(char *command) {
-    char *token;
-
-    token = strtok(command, ":");
-
-    if (token == NULL) // if command was empty string
-    {
-        return;
-    }
-
-    for (uint16_t i = 0; i < MAPPING_COUNT; i++) {
-        if (strcmp(token, mapping_table[i].wave_name) == 0) {
-            char *freq_str = strtok(NULL, ":");
-            if (freq_str == NULL) {
-                UART_write_string("Missing frequency\r\n");
-                return;
-            }
-            char *amp_str = strtok(NULL, ":");
-            if (amp_str == NULL) {
-                UART_write_string("Missing amplitude\r\n");
-                return;
-            }
-            uint16_t freq_int = atoi(freq_str);
-            uint16_t amp_int = atoi(amp_str);
-
-            if (freq_int == 0 ||
-                amp_int == 0) // if the conversion is not valid atoi returns 0
-            {
-                UART_write_string("Frequency or amplitude is not int\r\n");
-                return;
-            }
-
-            mapping_table[i].wave_fn(freq_int, amp_int);
-
-            UART_write_string(mapping_table[i].wave_name);
-            UART_write_string(" OK\r\n");
-            return;
-        }
-    }
-
-    UART_write_string("UNKNOWN WAVE NAME\r\n");
-}
-
 void UART0_IRQHandler(void) {
     uint32_t iir = LPC_UART0->IIR;
-	if (iir & 1) return;
+    if (iir & 1)
+        return;
     uint8_t c = UART_read_byte();
 
     if (c == '\n' || c == '\r') // command from uart ends with \n
     {
         uart_rx_buf[uart_rx_idx] = '\0';
         uart_rx_idx = 0;
-		
-		UART_write_string("\r\nREAD: ");
-		UART_write_string((char*)uart_rx_buf);
-		UART_write_string("\r\n");
-		parse_uart_command((char*)uart_rx_buf);
+
+        UART_write_string("\r\nREAD: ");
+        UART_write_string((char *)uart_rx_buf);
+        UART_write_string("\r\n");
+        CMD_parse((char *)uart_rx_buf);
 
     } else if (uart_rx_idx < UART_RX_BUF_SIZE - 1) {
-		uart_rx_buf[uart_rx_idx++] = c;
-	} else {
-		UART_write_string("UART_RX_BUF_SIZE - exceeded size of rx buffer\r\n");
-		uart_rx_idx = 0;
+        uart_rx_buf[uart_rx_idx++] = c;
+    } else {
+        UART_write_string("UART_RX_BUF_SIZE - exceeded size of rx buffer\r\n");
+        uart_rx_idx = 0;
     }
 }
