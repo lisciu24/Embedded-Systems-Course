@@ -2,6 +2,11 @@
 #define INTERFACE_H
 
 #include "LPC17xx.h"
+#include <stdint.h>
+
+#define BTN_PADDING 5
+
+#define LABEL_WIDTH(_label) (strlen(_label) * 8)
 
 #define DRAW_MIN_X 30
 #define DRAW_MAX_X (LCD_MAX_X - 59)
@@ -35,6 +40,15 @@
     (DAC_B_MIN_Y +                                                             \
      34) // width of the 3 letters where each 8 bits + 5 bits padding
 
+#define FREQ_DB_MIN_X (ERASE_B_MIN_X)
+#define FREQ_DB_MIN_Y (DAC_B_MAX_Y + 5)
+
+#define FREQ_LB_MIN_X (ERASE_B_MIN_X)
+#define FREQ_LB_MIN_Y (FREQ_DB_MIN_Y + LABEL_WIDTH("<|") + 3 * BTN_PADDING)
+
+#define FREQ_UB_MIN_X (ERASE_B_MIN_X)
+#define FREQ_UB_MIN_Y (FREQ_LB_MIN_Y + LABEL_WIDTH("XX XXX") + 3 * BTN_PADDING)
+
 // https://www.geeksforgeeks.org/c/how-to-create-typedef-for-function-pointer-in-c/
 typedef void (*ButtonCallback)(void); // Typedef for a Function Pointer in C
 
@@ -46,6 +60,7 @@ typedef struct {
 
     uint16_t bg_color;
     uint16_t text_color;
+    uint16_t text_vertical; // 0 horizontal, 1 vertical
 
     const char *label;
 
@@ -53,7 +68,7 @@ typedef struct {
 
 } Button;
 
-void button_draw(Button *btn, _Bool with_text, _Bool text_vertical);
+void button_draw(Button *btn);
 _Bool button_contains(Button *btn, uint16_t px, uint16_t py);
 void button_handle_touch(Button *btn, uint16_t px, uint16_t py);
 void erase_button_callback(void);

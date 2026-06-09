@@ -1,29 +1,46 @@
 #include "interface.h"
 #include "LPC17xx.h"
 #include "calligraphy.h"
+#include "generator_ctrl.h"
 #include "lcd.h"
 #include "systick.h"
 #include "uart.h"
-#include "generator_ctrl.h"
 #include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 
-uint32_t lcd_graph;
+#define CREATE_BTN_LABEL(_label)                                               \
+    .label = (_label), .width = LABEL_WIDTH(_label) + 2 * BTN_PADDING,         \
+    .height = 16 + 2 * BTN_PADDING
+
+static uint32_t freq_idx = 0;
+static const uint32_t freq_values[] = {10,   20,   50,   100,   200,  500,
+                                       1000, 2000, 5000, 10000, 20000};
+static char freq_label[8];
+
+#define FREQ_VALUES_SIZE (sizeof(freq_values) / sizeof(freq_values[0]))
 
 // draws button using provided Button struct
 // with_text == true draws text in the button
 // text_vertical == true draws text vertically on the screen (from lower to
 // higher y)
-void button_draw(Button *btn, bool with_text, bool text_vertical) {
-    fill_rect(btn->x, btn->y, btn->width, btn->height, btn->bg_color);
+void button_draw(Button *btn) {
 
-    if (with_text) {
-        if (text_vertical) {
-            draw_text_vertical(btn->label, btn->x + 4, btn->y + 5,
-                               btn->text_color, btn->bg_color);
-        } else {
-            draw_text(btn->label, btn->x + 5, btn->y + 4, btn->text_color,
-                      btn->bg_color);
-        }
+    fill_rect(btn->x, btn->y, btn->width, btn->height, btn->bg_color);
+    if (btn->label == NULL)
+        return;
+
+    uint32_t text_width = strlen(btn->label) * 8;
+    uint32_t text_height = 16;
+    uint32_t text_off_x = (btn->width - text_width) / 2;
+    uint32_t text_off_y = (btn->height - text_height) / 2;
+    if (btn->text_vertical) {
+
+        draw_text_vertical(btn->label, btn->x + text_off_x, btn->y + text_off_y,
+                           btn->text_color, btn->bg_color);
+    } else {
+        draw_text(btn->label, btn->x + 5, btn->y + 4, btn->text_color,
+                  btn->bg_color);
     }
 }
 
@@ -33,6 +50,9 @@ bool button_contains(Button *btn, uint16_t px, uint16_t py) {
 }
 
 void button_handle_touch(Button *btn, uint16_t px, uint16_t py) {
+    if (btn->on_click == NULL)
+        return;
+
     if (button_contains(btn, px, py)) {
         if (btn->on_click != NULL) {
             btn->on_click();
@@ -64,58 +84,109 @@ void fix_button_callback(void) {
 
 void dac_button_callback(void) {
     UART_write_string("DAC\r\n");
-	uint16_t values[DRAW_MAX_Y - DRAW_MIN_Y + 1];
-	read_graph(DRAW_MIN_X, DRAW_MAX_X, DRAW_MIN_Y, DRAW_MAX_Y, values);
-	
-	uint16_t lut[FSAMPLE];
-	uint16_t step = (DRAW_MAX_Y - DRAW_MIN_Y + 1) * 1000 / 50;
-	uint16_t max_v = DRAW_MAX_X - DRAW_MIN_X;
-	for (uint16_t i = 0; i < 50; i++) {
-		lut[i] = (values[i * step / 1000] * 1023U) / max_v;
-	}
-	
-	GENCTRL_function(lut, MAX_AMPLITUDE, 10000);
+    uint16_t values[DRAW_MAX_Y - DRAW_MIN_Y + 1];
+    read_graph(DRAW_MIN_X, DRAW_MAX_X, DRAW_MIN_Y, DRAW_MAX_Y, values);
+
+    uint16_t lut[FSAMPLE];
+    uint16_t step = (DRAW_MAX_Y - DRAW_MIN_Y + 1) * 1000 / 50;
+    uint16_t max_v = DRAW_MAX_X - DRAW_MIN_X;
+    for (uint16_t i = 0; i < 50; i++) {
+        lut[i] = (values[i * step / 1000] * 1023U) / max_v;
+    }
+
+    GENCTRL_function(lut, MAX_AMPLITUDE, freq_values[freq_idx]);
+}
+
+Button freq_label_button = {.x = FREQ_LB_MIN_X,
+                            .y = FREQ_LB_MIN_Y,
+                            .bg_color = LCDWhite,
+                            .text_color = LCDBlack,
+                            .text_vertical = 1,
+                            CREATE_BTN_LABEL("10 000"),
+                            .on_click = NULL};
+
+void freq_up_button_callback(void) {
+    if (freq_idx < FREQ_VALUES_SIZE - 1) {
+        freq_idx++;
+    }
+    int_to_str(freq_values[freq_idx], freq_label, 10);
+    button_draw(&freq_label_button);
+
+    UART_write_string("FREQ: ");
+    UART_write_int(freq_values[freq_idx]);
+}
+
+void freq_down_button_callback(void) {
+    if (freq_idx > 0) {
+        freq_idx--;
+    }
+
+    int_to_str(freq_values[freq_idx], freq_label, 10);
+    button_draw(&freq_label_button);
+
+    UART_write_string("FREQ: ");
+    UART_write_int(freq_values[freq_idx]);
 }
 
 // https://www.geeksforgeeks.org/c/how-to-initialize-structures-in-c/
 // Designated Initialization
 Button erase_button = {.x = ERASE_B_MIN_X,
                        .y = ERASE_B_MIN_Y,
-                       .width = ERASE_B_MAX_X - ERASE_B_MIN_X + 1,
-                       .height = ERASE_B_MAX_Y - ERASE_B_MIN_Y + 1,
 
                        .bg_color = LCDMagenta,
                        .text_color = LCDBlack,
+                       .text_vertical = 1,
 
-                       .label = "ERASE",
+                       CREATE_BTN_LABEL("ERASE"),
 
                        .on_click = erase_button_callback};
 
 Button fix_button = {.x = FIX_B_MIN_X,
                      .y = FIX_B_MIN_Y,
-                     .width = FIX_B_MAX_X - FIX_B_MIN_X + 1,
-                     .height = FIX_B_MAX_Y - FIX_B_MIN_Y + 1,
 
                      .bg_color = LCDGreen,
                      .text_color = LCDBlack,
+                     .text_vertical = 1,
 
-                     .label = "FIX",
+                     CREATE_BTN_LABEL("FIX"),
 
                      .on_click = fix_button_callback};
 
 Button dac_button = {.x = DAC_B_MIN_X,
                      .y = DAC_B_MIN_Y,
-                     .width = DAC_B_MAX_X - DAC_B_MIN_X + 1,
-                     .height = DAC_B_MAX_Y - DAC_B_MIN_Y + 1,
 
                      .bg_color = LCDCyan,
                      .text_color = LCDBlack,
+                     .text_vertical = 1,
 
-                     .label = "DAC",
+                     CREATE_BTN_LABEL("DAC"),
 
                      .on_click = dac_button_callback};
 
-Button *buttons[] = {&erase_button, &fix_button, &dac_button};
+Button freq_down_button = {.x = FREQ_DB_MIN_X,
+                           .y = FREQ_DB_MIN_Y,
+
+                           .bg_color = LCDGinger,
+                           .text_color = LCDBlack,
+                           .text_vertical = 1,
+
+                           CREATE_BTN_LABEL("<|"),
+
+                           .on_click = freq_down_button_callback};
+
+Button freq_up_button = {.x = FREQ_UB_MIN_X,
+                         .y = FREQ_UB_MIN_Y,
+
+                         .bg_color = LCDGinger,
+                         .text_color = LCDBlack,
+                         .text_vertical = 1,
+
+                         CREATE_BTN_LABEL("|>"),
+
+                         .on_click = freq_up_button_callback};
+
+Button *buttons[] = {&erase_button,   &fix_button,       &dac_button,
+                     &freq_up_button, &freq_down_button, &freq_label_button};
 
 #define BUTTON_COUNT (sizeof(buttons) / sizeof(buttons[0]))
 
@@ -195,7 +266,7 @@ void init_interface(void) {
 
     // drawing all buttons
     for (uint32_t i = 0; i < BUTTON_COUNT; i++) {
-        button_draw(buttons[i], true, true);
+        button_draw(buttons[i]);
     }
 
     for (;;) {
@@ -205,21 +276,19 @@ void init_interface(void) {
         Point tp = TP_get_mean_XY();
         Point lcd = TP_to_LCD(tp);
 
-		char buf[64];
-		sprintf(buf, "lx: %d\tly: %d\r\n", lcd.x, lcd.y);
-		UART_write_string(buf);
-		
-		
+        char buf[64];
+        sprintf(buf, "lx: %d\tly: %d\r\n", lcd.x, lcd.y);
+        UART_write_string(buf);
+
         // check if any button is clicked
         for (uint32_t i = 0; i < BUTTON_COUNT; i++) {
             button_handle_touch(buttons[i], lcd.x, lcd.y);
         }
-		
 
         // touch check inside drawing area
         if (lcd.x >= DRAW_MIN_X && lcd.x <= DRAW_MAX_X && lcd.y >= DRAW_MIN_Y &&
             lcd.y <= DRAW_MAX_Y) {
-			UART_write_string("DRAW\r\n");
+            UART_write_string("DRAW\r\n");
             draw_pixel(lcd.x, lcd.y, LCDBlack);
         }
     }

@@ -3,6 +3,7 @@
 
 #include "LPC17xx.h"
 
+void int_to_str(int32_t num, char *str, uint32_t base);
 void UART_write_byte(uint8_t data);
 void UART_write_string(const char *str);
 void UART_write_line(const char *str);

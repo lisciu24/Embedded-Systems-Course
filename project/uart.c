@@ -6,7 +6,7 @@
 static volatile char uart_rx_buf[UART_RX_BUF_SIZE];
 static volatile uint16_t uart_rx_idx = 0;
 
-static void int_to_str(int32_t num, char *str, uint32_t base) {
+void int_to_str(int32_t num, char *str, uint32_t base) {
     uint32_t i = 0, neg = 0;
 
     if (num == 0) {
