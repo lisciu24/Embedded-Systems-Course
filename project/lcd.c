@@ -177,18 +177,23 @@ Calibration_Matrix cal_matrix;
 #define CALIBRATION_PRECISION 1000
 
 void TP_config_restore(void) {
-    memcpy(&cal_matrix, (void*)&LPC_RTC->GPREG0, sizeof(cal_matrix));
+    memcpy(&cal_matrix, (void *)&LPC_RTC->GPREG0, sizeof(cal_matrix));
 }
 
 void TP_config_store(void) {
-    memcpy((void*)&LPC_RTC->GPREG0, &cal_matrix, sizeof(cal_matrix));
+    memcpy((void *)&LPC_RTC->GPREG0, &cal_matrix, sizeof(cal_matrix));
 }
 
 void _calculate_calibration_matrix(Point lcd[], Point tp[]) {
     for (uint32_t i = 0; i < 3; i++) {
         lcd[i].x /= 10;
         lcd[i].y /= 10;
+        if (tp[i].x % 10 > 5)
+            tp[i].x += 5;
         tp[i].x /= 10;
+
+        if (tp[i].y % 10 > 5)
+            tp[i].y += 5;
         tp[i].y /= 10;
     }
 
