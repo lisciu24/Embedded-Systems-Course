@@ -64,6 +64,7 @@ static void msg_help() {
 static void cmd_help(uint32_t argc, arg_t argv[]) { msg_help(); }
 static void cmd_start(uint32_t argc, arg_t argv[]) { GENCTRL_start(); }
 static void cmd_stop(uint32_t argc, arg_t argv[]) { GENCTRL_stop(); }
+static void cmd_bitmap(uint32_t argc, arg_t argv[]) { GENCTRL_bitmap(); }
 
 static const cmd_t cmds[] = {
     {"SIN", CMD_GEN_WAVE, .wave_lut = sin_lut},
@@ -71,7 +72,8 @@ static const cmd_t cmds[] = {
     {"TRIANGLE", CMD_GEN_WAVE, .wave_lut = triangle_lut},
     {"HELP", CMD_FUN, .fun = cmd_help},
     {"START", CMD_FUN, .fun = cmd_start},
-    {"STOP", CMD_FUN, .fun = cmd_stop}};
+    {"STOP", CMD_FUN, .fun = cmd_stop},
+    {"BITMAP", CMD_FUN, .fun = cmd_bitmap}};
 
 #define CMD_COUNT (sizeof(cmds) / sizeof(cmd_t))
 #define MAX_ARG_COUNT 2
