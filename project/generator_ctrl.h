@@ -15,7 +15,15 @@ void GENCTRL_function(const uint16_t fun[], uint32_t amplitude,
                       uint32_t frequency);
 void GENCTRL_stop(void);
 void GENCTRL_start(void);
+<<<<<<< Updated upstream
 void GENCTRL_bitmap();
 void GENCTRL_bitmap_row(uint32_t bmp_idx, uint32_t bmp_row_idx);
+=======
+<<<<<<< Updated upstream
+=======
+void GENCTRL_bitmap();
+void GENCTRL_bitmap_row(uint32_t, uint32_t);
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 
 #endif // GENERATOR_CTRL_H

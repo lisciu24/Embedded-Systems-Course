@@ -57,6 +57,11 @@ void UART_write_line(const char *str) {
     UART_write_string("\r\n");
 }
 
+void UART_debug(const char *str) {
+    UART_write_string("DEBUG >>> ");
+    UART_write_line(str);
+}
+
 void UART_write_int(uint32_t value) {
     char buff[16];
     int_to_str(value, buff, 10);

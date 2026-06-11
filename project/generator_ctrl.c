@@ -82,6 +82,12 @@ void DMA_init(void) {
     // SWidth to 16-bit, DWidth to 16-bit,
     // Source increment
     LPC_GPDMACH0->DMACCControl =
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
+        FSAMPLE | 1 << 18 | 1 << 21 | 1 << 26 | 1U << 31;
+=======
+>>>>>>> Stashed changes
         FSAMPLE | 1 << 18 | 1 << 21 | 1 << 26; //| 1U << 31;
 
     // Enables DMA channel,
@@ -101,13 +107,22 @@ void DMA_bitmap_init() {
     // Set destination address for chanel 0
     LPC_GPDMACH0->DMACCDestAddr = (uint32_t)&LPC_DAC->DACR;
     // Set LLI address
+<<<<<<< Updated upstream
     LPC_GPDMACH0->DMACCLLI = (uint32_t)LLI_bitmap;
+=======
+    LPC_GPDMACH0->DMACCLLI = (uint32_t)&LLI_bitmap[1];
+>>>>>>> Stashed changes
 
     // Sets: TransferSize to values_size,
     // SWidth to 16-bit, DWidth to 16-bit,
     // Source increment
     LPC_GPDMACH0->DMACCControl =
+<<<<<<< Updated upstream
         BITMAP_ROW_BUFF | 1 << 18 | 1 << 21 | 1 << 26; // | 1U << 31;
+=======
+        BITMAP_ROW_BUFF | 1 << 18 | 1 << 21 | 1 << 26 | 1U << 31;
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 
     // Enables DMA channel,
     // Sets: DestPeripheral to DAC,
@@ -168,6 +183,11 @@ void GENCTRL_function(const uint16_t fun[], uint32_t amplitude,
     GENCTRL_start();
 }
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
 void GENCTRL_bitmap() {
     GENCTRL_stop();
     DAC_set_frequency(100);
@@ -178,8 +198,13 @@ void GENCTRL_bitmap() {
     DMA_bitmap_init();
 }
 
+<<<<<<< Updated upstream
 void GENCTRL_bitmap_row(uint32_t bmp_idx, uint32_t bmp_row_idx) {
     uint16_t *p_bmp_buff = bmp_buff + (BITMAP_ROW_BUFF * bmp_idx);
+=======
+void GENCTRL_bitmap_row(uint32_t bmp_buff_idx, uint32_t bmp_row_idx) {
+    uint16_t *p_bmp_buff = bmp_buff + (BITMAP_ROW_BUFF * bmp_buff_idx);
+>>>>>>> Stashed changes
     const uint16_t *p_bmp_row = (uint16_t *)bitmap + bmp_row_idx;
     const uint16_t base_offset = bmp_row_idx * PIXEL_HEIGHT;
     *p_bmp_buff++ = DACV(1023);
@@ -198,6 +223,10 @@ void GENCTRL_bitmap_row(uint32_t bmp_idx, uint32_t bmp_row_idx) {
     *p_bmp_buff = 0;
 }
 
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 void GENCTRL_start() { DMA_init(); }
 
 void GENCTRL_stop() { DMA_stop(); }
