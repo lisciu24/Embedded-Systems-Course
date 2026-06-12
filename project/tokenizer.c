@@ -23,7 +23,8 @@ typedef enum {
     TOKEN_NUMBER,
     TOKEN_END,
     TOKEN_EMPTY,
-    TOKEN_UNKNOWN
+    TOKEN_UNKNOWN,
+    TOKEN_CMD
 } token_type_t;
 
 typedef enum {
@@ -64,9 +65,10 @@ typedef struct {
     } val;
 } arg_t;
 
-typedef enum { CMD_GEN_WAVE, CMD_FUN } cmd_type_t;
+typedef enum { CMD_GEN_WAVE, CMD_FUN, CMD_FUN_SEQ } cmd_type_t;
 
 typedef void (*cmd_fun_t)(uint32_t, arg_t[]);
+typedef uint32_t (*cmd_fun_seq_t)(uint32_t, arg_t[]);
 
 typedef struct {
     const char *name;
@@ -75,8 +77,15 @@ typedef struct {
     union {
         const uint16_t *wave_lut;
         cmd_fun_t fun;
+        cmd_fun_seq_t fun_seq;
     };
 } cmd_t;
+
+static uint32_t token_match(const token_t *token, const char *str) {
+    if (token->type != TOKEN_STRING || token->length != strlen(str))
+        return 0;
+    return strncmp(token->start, str, token->length) == 0;
+}
 
 static void msg_help() {
     UART_write_line("Allowed commands:");
@@ -94,7 +103,54 @@ static void msg_help() {
 static void cmd_help(uint32_t argc, arg_t argv[]) { msg_help(); }
 static void cmd_start(uint32_t argc, arg_t argv[]) { GENCTRL_start(); }
 static void cmd_stop(uint32_t argc, arg_t argv[]) { GENCTRL_stop(); }
-static void cmd_bitmap(uint32_t argc, arg_t argv[]) { GENCTRL_bitmap(); }
+
+static uint32_t bmp_row_idx = 0;
+static uint32_t cmd_bitmap(uint32_t argc, arg_t argv[]) {
+    uint32_t err = 0;
+    for (uint32_t i = 0; i < argc; i++) {
+        switch (argv[i].type) {
+        case ARG_NUMBER:
+            if (argv[i].val.num < 1 << BITMAP_SIZE) {
+                GENCTRL_load_bitmap_row(argv[i].val.num, bmp_row_idx);
+                if (++bmp_row_idx == BITMAP_SIZE) {
+                    bmp_row_idx = 0;
+                    GENCTRL_bitmap();
+                    return 1;
+                }
+            } else {
+                err = 1;
+            }
+            break;
+        case ARG_STRING:
+            if (token_match(&argv[i].val.str, "Q")) {
+                bmp_row_idx = 0;
+                UART_write_line("Quiting BMP mode");
+                return 1;
+            } else {
+                err = 1;
+            }
+        default:
+            err = 1;
+            break;
+        }
+        if (err)
+            break;
+    }
+
+    if (err) {
+        UART_write_string("Expected integer value in range [0, ");
+        UART_write_int(2 << BITMAP_SIZE);
+        UART_write_line("]");
+        UART_write_line("Send 'Q' to quit BMP mode");
+    }
+
+    UART_write_int(bmp_row_idx + 1);
+    UART_write_string("/");
+    UART_write_int(BITMAP_SIZE);
+    UART_write_string(" > ");
+
+    return 0;
+}
 
 static const cmd_t cmds[] = {
     {"SIN", CMD_GEN_WAVE, .wave_lut = sin_lut},
@@ -103,23 +159,7 @@ static const cmd_t cmds[] = {
     {"HELP", CMD_FUN, .fun = cmd_help},
     {"START", CMD_FUN, .fun = cmd_start},
     {"STOP", CMD_FUN, .fun = cmd_stop},
-    {"BITMAP", CMD_FUN, .fun = cmd_bitmap}};
-
-#define CMD_COUNT (sizeof(cmds) / sizeof(cmd_t))
-#define MAX_ARG_COUNT 2
-
-typedef enum {
-    STATE_BEGIN,
-    STATE_READ_STRING,
-    STATE_READ_NUMBER,
-    STATE_READ_ERROR
-} lexer_state_t;
-
-static uint32_t token_match(const token_t *token, const char *str) {
-    if (token->type != TOKEN_STRING || token->length != strlen(str))
-        return 0;
-    return strncmp(token->start, str, token->length) == 0;
-}
+    {"BITMAP", CMD_FUN_SEQ, .fun_seq = cmd_bitmap}};
 
 static uint32_t token_to_uint32(token_t *token) {
     if (token->type != TOKEN_NUMBER) {
@@ -187,60 +227,80 @@ static uint32_t token_to_uint32(token_t *token) {
             token->err = PARSE_NUM_OVERFLOW;
             token->length = cursor - token->start;
         }
+
+        cursor++;
     }
 
     return value;
 }
 
+#define CMD_COUNT (sizeof(cmds) / sizeof(cmd_t))
+
+typedef enum lexer_state_e {
+    LEX_STATE_BEGIN,
+    LEX_STATE_READ_STRING,
+    LEX_STATE_READ_NUMBER,
+    LEX_STATE_READ_ERROR
+} lexer_state_t;
+
 static const char *get_next_token(const char *cursor, token_t *token) {
-    lexer_state_t state = STATE_BEGIN;
+    lexer_state_t state = LEX_STATE_BEGIN;
     token->start = cursor;
     token->length = 0;
     token->err = PARSE_OK;
 
-    while (*cursor != '\0' && *cursor != ':') {
+    while (*cursor != '\0' && *cursor != ':' && *cursor != ';') {
         const char ch = *cursor;
 
         switch (state) {
-        case STATE_BEGIN:
+        case LEX_STATE_BEGIN:
             if (isdigit(ch)) {
-                state = STATE_READ_NUMBER;
+                state = LEX_STATE_READ_NUMBER;
                 token->type = TOKEN_NUMBER;
             } else if (isalpha(ch)) {
-                state = STATE_READ_STRING;
+                state = LEX_STATE_READ_STRING;
                 token->type = TOKEN_STRING;
             } else {
-                state = STATE_READ_ERROR;
+                state = LEX_STATE_READ_ERROR;
                 token->type = TOKEN_UNKNOWN;
                 token->err = PARSE_ERROR;
             }
             break;
 
-        case STATE_READ_STRING:
+        case LEX_STATE_READ_STRING:
             if (!isalnum(ch)) {
-                state = STATE_READ_ERROR;
+                state = LEX_STATE_READ_ERROR;
                 token->err = PARSE_STRING_INVALID_CHAR;
                 token->length = cursor - token->start;
             }
             break;
 
-        case STATE_READ_NUMBER:
+        case LEX_STATE_READ_NUMBER:
             if (!isxdigit(ch) && cursor - token->start != 1) {
-                state = STATE_READ_ERROR;
+                state = LEX_STATE_READ_ERROR;
                 token->err = PARSE_NUM_INVALID_CHAR;
                 token->length = cursor - token->start;
             }
             break;
-        case STATE_READ_ERROR:
+        case LEX_STATE_READ_ERROR:
             break;
         }
 
         cursor++;
     }
 
-    if (state == STATE_BEGIN) {
-        token->type = *cursor ? TOKEN_EMPTY : TOKEN_END;
-    } else if (state != STATE_READ_ERROR) {
+    if (state == LEX_STATE_BEGIN) {
+        switch (*cursor) {
+        case ':':
+            token->type = TOKEN_EMPTY;
+            break;
+        case '\0':
+            token->type = TOKEN_END;
+            break;
+        case ';':
+            token->type = TOKEN_CMD;
+        }
+    } else if (state != LEX_STATE_READ_ERROR) {
         token->length = cursor - token->start;
     }
 
@@ -265,30 +325,41 @@ static void token_parse_err_msg(const char *cmd, uint32_t token_num,
     UART_write_line("^");
 }
 
+void CMD_parse_bmp_row(const char *cmd) {}
+
+static token_t cmd_token = {TOKEN_EMPTY};
+static char cmd_buff[16];
+
 void CMD_parse(const char *cmd) {
     const char *cursor = cmd;
     token_t token;
-    uint32_t parse_error = 0;
+    uint32_t parse_arg_error = 0;
+    uint32_t parse_cmd_error = 0;
 
-    cursor = get_next_token(cursor, &token);
-    if (token.err != PARSE_OK || token.type != TOKEN_STRING) {
-        UART_write_line("Error parsing command!");
-        parse_error = 1;
+    if (cmd_token.type == TOKEN_EMPTY) {
+        cursor = get_next_token(cursor, &token);
+        if (token.err != PARSE_OK || token.type != TOKEN_STRING ||
+            token.length > 15) {
+            UART_write_line("Error parsing command!");
+            parse_cmd_error = 1;
+        } else {
+            strncpy(cmd_buff, token.start, token.length);
+            cmd_token = token;
+            cmd_token.start = cmd_buff;
+        }
     }
 
-    token_t cmd_token = token;
-
     uint32_t argc = 0;
-    arg_t argv[MAX_ARG_COUNT] = {};
+    arg_t argv[MAX_ARG_COUNT];
 
-    for (argc = 0; argc < MAX_ARG_COUNT; argc++) {
+    for (; argc < MAX_ARG_COUNT; argc++) {
         cursor = get_next_token(cursor, &token);
         if (token.type == TOKEN_END)
             break;
 
         if (token.err != PARSE_OK) {
             token_parse_err_msg(cmd, argc, &token);
-            parse_error = 1;
+            parse_arg_error = 1;
             break;
         }
 
@@ -297,12 +368,12 @@ void CMD_parse(const char *cmd) {
             argv[argc].val.str = token;
         } else if (token.type == TOKEN_NUMBER) {
             uint32_t value = token_to_uint32(&token);
-            if (token.err != PARSE_OK) {
+            if (token.err == PARSE_OK) {
                 argv[argc].type = ARG_NUMBER;
                 argv[argc].val.num = value;
             } else {
                 token_parse_err_msg(cmd, argc, &token);
-                parse_error = 1;
+                parse_arg_error = 1;
                 break;
             }
         } else if (token.type == TOKEN_EMPTY) {
@@ -310,11 +381,16 @@ void CMD_parse(const char *cmd) {
         }
     }
 
-    if (parse_error)
+    if (parse_cmd_error)
         return;
 
     for (uint32_t i = 0; i < CMD_COUNT; i++) {
         if (token_match(&cmd_token, cmds[i].name)) {
+            if (parse_arg_error && cmds[i].cmd_type != CMD_FUN_SEQ) {
+                cmd_token.type = TOKEN_EMPTY;
+                return;
+            }
+
             switch (cmds[i].cmd_type) {
             case CMD_GEN_WAVE: {
                 uint32_t args_ok = 1;
@@ -337,14 +413,21 @@ void CMD_parse(const char *cmd) {
                 if (args_ok)
                     GENCTRL_function(cmds[i].wave_lut, argv[1].val.num,
                                      argv[0].val.num);
+                cmd_token.type = TOKEN_EMPTY;
             } break;
             case CMD_FUN:
                 cmds[i].fun(argc, argv);
+                cmd_token.type = TOKEN_EMPTY;
+                break;
+            case CMD_FUN_SEQ:
+                if (cmds[i].fun_seq(argc, argv))
+                    cmd_token.type = TOKEN_EMPTY;
                 break;
             }
 
             return;
         }
     }
+    cmd_token.type = TOKEN_EMPTY;
     UART_write_line("Error: unknown command");
 }

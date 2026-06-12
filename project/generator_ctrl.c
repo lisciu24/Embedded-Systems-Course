@@ -13,60 +13,50 @@
          : ((freq) < MIN_FREQUENCY ? MIN_FREQUENCY : (freq)))
 #define CLIP_AMPLITUDE(amp) ((amp) > MAX_AMPLITUDE ? MAX_AMPLITUDE : (amp))
 
-#define BITMAP_SIZE 8
-#define PIXEL_RES 8
 #define PIXEL_HEIGHT (1024 / BITMAP_SIZE)
 #define BITMAP_ROW_BUFF (1 + BITMAP_SIZE * PIXEL_RES + 1)
 
 typedef struct LLI_s {
     uint32_t DMACCSrcAddr;
     uint32_t DMACCDestAddr;
-    struct LLI_s *DMACCLLI;
+    const struct LLI_s *DMACCLLI;
     uint32_t DMACCControl;
 } LLI_t;
 
-static const uint16_t bitmap[BITMAP_SIZE][BITMAP_SIZE] = {
+static uint16_t bitmap[BITMAP_SIZE][BITMAP_SIZE + 2] = {
     {0, 0, 1, 1, 1, 1, 0, 0}, {0, 1, 0, 0, 0, 0, 1, 0},
     {1, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 1, 0, 0, 1, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 1, 1, 0, 0, 1},
     {0, 1, 0, 0, 0, 0, 1, 0}, {0, 0, 1, 1, 1, 1, 0, 0}};
 
 static uint16_t bmp_buff[BITMAP_ROW_BUFF * 2];
-static LLI_t LLI_bitmap[2];
+static const LLI_t LLI_bitmap[2] = {
+    {.DMACCLLI = &LLI_bitmap[1],
+     // Set source address for LLI
+     .DMACCSrcAddr = (uint32_t)bmp_buff,
+     // Set destination address for LLI
+     .DMACCDestAddr = (uint32_t)&LPC_DAC->DACR,
+     .DMACCControl = BITMAP_ROW_BUFF | 1 << 18 | 1 << 21 | 1 << 26 | 1U << 31},
+    {.DMACCLLI = &LLI_bitmap[0],
+     // Set source address for LLI
+     .DMACCSrcAddr = (uint32_t)(bmp_buff + BITMAP_ROW_BUFF),
+     // Set destination address for LLI
+     .DMACCDestAddr = (uint32_t)&LPC_DAC->DACR,
+     .DMACCControl = BITMAP_ROW_BUFF | 1 << 18 | 1 << 21 | 1 << 26 | 1U << 31}};
 static volatile uint32_t bmp_idx = 0;
 static volatile uint32_t bmp_row_idx = 0;
 
-static LLI_t LLI;
 static uint16_t buff[FSAMPLE];
-
-void LLI_init(void) {
-    LLI.DMACCLLI = &LLI;
+static const LLI_t LLI = {
+    .DMACCLLI = &LLI,
     // Set source address for LLI
-    LLI.DMACCSrcAddr = (uint32_t)buff;
+    .DMACCSrcAddr = (uint32_t)buff,
     // Set destination address for LLI
-    LLI.DMACCDestAddr = (uint32_t)&LPC_DAC->DACR;
-    LLI.DMACCControl = FSAMPLE | 1 << 18 | 1 << 21 | 1 << 26; // | 1U << 31;
-}
+    .DMACCDestAddr = (uint32_t)&LPC_DAC->DACR,
+    .DMACCControl = FSAMPLE | 1 << 18 | 1 << 21 | 1 << 26 // | 1U << 31;
+};
 
-void LLI_bitmap_init(void) {
-    LLI_bitmap[0].DMACCLLI = &LLI_bitmap[1];
-    // Set source address for LLI
-    LLI_bitmap[0].DMACCSrcAddr = (uint32_t)bmp_buff;
-    // Set destination address for LLI
-    LLI_bitmap[0].DMACCDestAddr = (uint32_t)&LPC_DAC->DACR;
-    LLI_bitmap[0].DMACCControl =
-        BITMAP_ROW_BUFF | 1 << 18 | 1 << 21 | 1 << 26 | 1U << 31;
-
-    LLI_bitmap[1].DMACCLLI = &LLI_bitmap[0];
-    // Set source address for LLI
-    LLI_bitmap[1].DMACCSrcAddr = (uint32_t)(bmp_buff + BITMAP_ROW_BUFF);
-    // Set destination address for LLI
-    LLI_bitmap[1].DMACCDestAddr = (uint32_t)&LPC_DAC->DACR;
-    LLI_bitmap[1].DMACCControl =
-        BITMAP_ROW_BUFF | 1 << 18 | 1 << 21 | 1 << 26 | 1U << 31;
-}
-
-void DMA_init(void) {
+static void DMA_init(void) {
     LPC_SC->PCONP |= 1 << 29;            // Power up DMA
     LPC_GPDMA->DMACConfig = 0b01;        // Enable DMA controller
     LPC_GPDMA->DMACIntErrClr |= 1 << 0;  // Clear error interrupt
@@ -82,12 +72,6 @@ void DMA_init(void) {
     // SWidth to 16-bit, DWidth to 16-bit,
     // Source increment
     LPC_GPDMACH0->DMACCControl =
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-        FSAMPLE | 1 << 18 | 1 << 21 | 1 << 26 | 1U << 31;
-=======
->>>>>>> Stashed changes
         FSAMPLE | 1 << 18 | 1 << 21 | 1 << 26; //| 1U << 31;
 
     // Enables DMA channel,
@@ -97,7 +81,7 @@ void DMA_init(void) {
     NVIC_EnableIRQ(DMA_IRQn);
 }
 
-void DMA_bitmap_init() {
+static void DMA_bitmap_init() {
     LPC_SC->PCONP |= 1 << 29;            // Power up DMA
     LPC_GPDMA->DMACConfig = 0b01;        // Enable DMA controller
     LPC_GPDMA->DMACIntErrClr |= 1 << 0;  // Clear error interrupt
@@ -107,22 +91,13 @@ void DMA_bitmap_init() {
     // Set destination address for chanel 0
     LPC_GPDMACH0->DMACCDestAddr = (uint32_t)&LPC_DAC->DACR;
     // Set LLI address
-<<<<<<< Updated upstream
-    LPC_GPDMACH0->DMACCLLI = (uint32_t)LLI_bitmap;
-=======
     LPC_GPDMACH0->DMACCLLI = (uint32_t)&LLI_bitmap[1];
->>>>>>> Stashed changes
 
     // Sets: TransferSize to values_size,
     // SWidth to 16-bit, DWidth to 16-bit,
     // Source increment
     LPC_GPDMACH0->DMACCControl =
-<<<<<<< Updated upstream
-        BITMAP_ROW_BUFF | 1 << 18 | 1 << 21 | 1 << 26; // | 1U << 31;
-=======
         BITMAP_ROW_BUFF | 1 << 18 | 1 << 21 | 1 << 26 | 1U << 31;
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 
     // Enables DMA channel,
     // Sets: DestPeripheral to DAC,
@@ -137,17 +112,16 @@ void DMA_IRQHandler(void) {
     GENCTRL_bitmap_row(bmp_idx, bmp_row_idx);
     bmp_idx ^= 1;
     bmp_row_idx = (bmp_row_idx + 1) % BITMAP_SIZE;
-    UART_write_string("DMA\n\r");
 }
 
-void DMA_stop(void) {
+static void DMA_stop(void) {
     LPC_GPDMACH0->DMACCConfig |= 1 << 18;
     while (LPC_GPDMACH0->DMACCConfig & 1 << 17)
         ;
     LPC_GPDMACH0->DMACCConfig &= ~1;
 }
 
-void DAC_init(void) {
+static void DAC_init(void) {
     // Set P0.26 to AOUT function, enables DAC
     LPC_PINCON->PINSEL1 &= ~(0b11 << 20);
     LPC_PINCON->PINSEL1 |= 0b10 << 20;
@@ -161,16 +135,16 @@ void DAC_init(void) {
     LPC_DAC->DACCNTVAL = 100U;
 }
 
-void DAC_set_frequency(uint32_t freq) {
+static void DAC_set_frequency(uint32_t freq) {
     freq = CLIP_FREQUENCY(freq);
     LPC_DAC->DACCNTVAL = 25000000 / freq / FSAMPLE;
 }
 
-void GENCTRL_init(void) {
-    DAC_init();
-    LLI_init();
-    LLI_bitmap_init();
+static void DAC_set_bmp_row_frequency(uint32_t freq) {
+    LPC_DAC->DACCNTVAL = 25000000 / freq / BITMAP_ROW_BUFF;
 }
+
+void GENCTRL_init(void) { DAC_init(); }
 
 void GENCTRL_function(const uint16_t fun[], uint32_t amplitude,
                       uint32_t frequency) {
@@ -183,14 +157,9 @@ void GENCTRL_function(const uint16_t fun[], uint32_t amplitude,
     GENCTRL_start();
 }
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
 void GENCTRL_bitmap() {
     GENCTRL_stop();
-    DAC_set_frequency(100);
+    DAC_set_bmp_row_frequency(100);
     GENCTRL_bitmap_row(0, 0);
     GENCTRL_bitmap_row(1, 1);
     bmp_idx = 0;
@@ -198,14 +167,16 @@ void GENCTRL_bitmap() {
     DMA_bitmap_init();
 }
 
-<<<<<<< Updated upstream
-void GENCTRL_bitmap_row(uint32_t bmp_idx, uint32_t bmp_row_idx) {
-    uint16_t *p_bmp_buff = bmp_buff + (BITMAP_ROW_BUFF * bmp_idx);
-=======
+void GENCTRL_load_bitmap_row(uint32_t bmp_row, uint32_t bmp_row_idx) {
+    for (uint32_t i = 0; i < BITMAP_SIZE; i++) {
+        uint32_t mask = 1 << i;
+        bitmap[bmp_row_idx][i] = (mask & bmp_row) >> i;
+    }
+}
+
 void GENCTRL_bitmap_row(uint32_t bmp_buff_idx, uint32_t bmp_row_idx) {
     uint16_t *p_bmp_buff = bmp_buff + (BITMAP_ROW_BUFF * bmp_buff_idx);
->>>>>>> Stashed changes
-    const uint16_t *p_bmp_row = (uint16_t *)bitmap + bmp_row_idx;
+    const uint16_t *p_bmp_row = bitmap[bmp_row_idx];
     const uint16_t base_offset = bmp_row_idx * PIXEL_HEIGHT;
     *p_bmp_buff++ = DACV(1023);
     for (uint32_t i = 0; i < BITMAP_SIZE; i++) {
@@ -223,10 +194,6 @@ void GENCTRL_bitmap_row(uint32_t bmp_buff_idx, uint32_t bmp_row_idx) {
     *p_bmp_buff = 0;
 }
 
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 void GENCTRL_start() { DMA_init(); }
 
 void GENCTRL_stop() { DMA_stop(); }

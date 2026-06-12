@@ -125,9 +125,6 @@ void UART0_IRQHandler(void) {
         uart_rx_buf[uart_rx_idx] = '\0';
         uart_rx_idx = 0;
 
-        UART_write_string("\r\nREAD: ");
-        UART_write_string((char *)uart_rx_buf);
-        UART_write_string("\r\n");
         CMD_parse((char *)uart_rx_buf);
 
     } else if (uart_rx_idx < UART_RX_BUF_SIZE - 1) {
