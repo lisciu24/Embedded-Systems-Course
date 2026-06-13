@@ -6,7 +6,7 @@
 
 #define BTN_PADDING 5
 
-#define LABEL_WIDTH(_label) (strlen(_label) * 8)
+#define LABEL_WIDTH(_label) (sizeof(_label) * 8)
 
 #define DRAW_MIN_X 30
 #define DRAW_MAX_X (LCD_MAX_X - 59)

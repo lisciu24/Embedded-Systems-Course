@@ -26,7 +26,6 @@ static char freq_label[8];
 // higher y)
 void button_draw(Button *btn) {
 
-    fill_rect(btn->x, btn->y, btn->width, btn->height, btn->bg_color);
     if (btn->label == NULL)
         return;
 
@@ -35,10 +34,11 @@ void button_draw(Button *btn) {
     uint32_t text_off_x = (btn->width - text_width) / 2;
     uint32_t text_off_y = (btn->height - text_height) / 2;
     if (btn->text_vertical) {
-
-        draw_text_vertical(btn->label, btn->x + text_off_x, btn->y + text_off_y,
+		fill_rect(btn->x, btn->y, btn->height, btn->width, btn->bg_color);
+        draw_text_vertical(btn->label, btn->x + text_off_y, btn->y + text_off_x,
                            btn->text_color, btn->bg_color);
     } else {
+		fill_rect(btn->x, btn->y, btn->width, btn->height, btn->bg_color);
         draw_text(btn->label, btn->x + 5, btn->y + 4, btn->text_color,
                   btn->bg_color);
     }
@@ -99,10 +99,11 @@ void dac_button_callback(void) {
 
 Button freq_label_button = {.x = FREQ_LB_MIN_X,
                             .y = FREQ_LB_MIN_Y,
-                            .bg_color = LCDWhite,
+                            .bg_color = LCDMagenta,
                             .text_color = LCDBlack,
                             .text_vertical = 1,
                             CREATE_BTN_LABEL("10 000"),
+							.label=freq_label,
                             .on_click = NULL};
 
 void freq_up_button_callback(void) {
@@ -114,6 +115,8 @@ void freq_up_button_callback(void) {
 
     UART_write_string("FREQ: ");
     UART_write_int(freq_values[freq_idx]);
+	
+	SYSTICK_wait(200);
 }
 
 void freq_down_button_callback(void) {
@@ -126,6 +129,8 @@ void freq_down_button_callback(void) {
 
     UART_write_string("FREQ: ");
     UART_write_int(freq_values[freq_idx]);
+	
+	SYSTICK_wait(200);
 }
 
 // https://www.geeksforgeeks.org/c/how-to-initialize-structures-in-c/
@@ -259,6 +264,9 @@ void read_graph(uint16_t x_start, uint16_t x_end, uint16_t y_start,
 
 void init_interface(void) {
     fill_screen_fast(LCDWhite);
+	
+	int_to_str(freq_values[freq_idx], freq_label, 10);
+    button_draw(&freq_label_button);
 
     // red border of the drawing area
     draw_rect(DRAW_MIN_X - 1, DRAW_MIN_Y - 1, DRAW_MAX_X - DRAW_MIN_X + 3,

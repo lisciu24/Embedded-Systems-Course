@@ -457,6 +457,16 @@
               <FileType>5</FileType>
               <FilePath>.\waves_lut.h</FilePath>
             </File>
+            <File>
+              <FileName>tokenizer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\tokenizer.c</FilePath>
+            </File>
+            <File>
+              <FileName>tokenizer.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\tokenizer.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

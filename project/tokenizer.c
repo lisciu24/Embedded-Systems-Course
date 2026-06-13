@@ -110,7 +110,7 @@ static uint32_t cmd_bitmap(uint32_t argc, arg_t argv[]) {
     for (uint32_t i = 0; i < argc; i++) {
         switch (argv[i].type) {
         case ARG_NUMBER:
-            if (argv[i].val.num < 1 << BITMAP_SIZE) {
+            if (argv[i].val.num < (1 << BITMAP_SIZE)) {
                 GENCTRL_load_bitmap_row(argv[i].val.num, bmp_row_idx);
                 if (++bmp_row_idx == BITMAP_SIZE) {
                     bmp_row_idx = 0;
@@ -129,6 +129,7 @@ static uint32_t cmd_bitmap(uint32_t argc, arg_t argv[]) {
             } else {
                 err = 1;
             }
+			break;
         default:
             err = 1;
             break;
@@ -344,6 +345,7 @@ void CMD_parse(const char *cmd) {
             parse_cmd_error = 1;
         } else {
             strncpy(cmd_buff, token.start, token.length);
+			cmd_buff[token.length] = '\0';
             cmd_token = token;
             cmd_token.start = cmd_buff;
         }

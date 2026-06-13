@@ -13,17 +13,17 @@
          : ((freq) < MIN_FREQUENCY ? MIN_FREQUENCY : (freq)))
 #define CLIP_AMPLITUDE(amp) ((amp) > MAX_AMPLITUDE ? MAX_AMPLITUDE : (amp))
 
-#define PIXEL_HEIGHT (1024 / BITMAP_SIZE)
+#define PIXEL_HEIGHT (512 / BITMAP_SIZE)
 #define BITMAP_ROW_BUFF (1 + BITMAP_SIZE * PIXEL_RES + 1)
 
 typedef struct LLI_s {
-    uint32_t DMACCSrcAddr;
-    uint32_t DMACCDestAddr;
+    void* DMACCSrcAddr;
+    void* DMACCDestAddr;
     const struct LLI_s *DMACCLLI;
     uint32_t DMACCControl;
 } LLI_t;
 
-static uint16_t bitmap[BITMAP_SIZE][BITMAP_SIZE + 2] = {
+static uint16_t bitmap[BITMAP_SIZE][BITMAP_SIZE] = {
     {0, 0, 1, 1, 1, 1, 0, 0}, {0, 1, 0, 0, 0, 0, 1, 0},
     {1, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 1, 0, 0, 1, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 1, 1, 0, 0, 1},
@@ -33,15 +33,15 @@ static uint16_t bmp_buff[BITMAP_ROW_BUFF * 2];
 static const LLI_t LLI_bitmap[2] = {
     {.DMACCLLI = &LLI_bitmap[1],
      // Set source address for LLI
-     .DMACCSrcAddr = (uint32_t)bmp_buff,
+     .DMACCSrcAddr = bmp_buff,
      // Set destination address for LLI
-     .DMACCDestAddr = (uint32_t)&LPC_DAC->DACR,
+     .DMACCDestAddr = (void*)&LPC_DAC->DACR,
      .DMACCControl = BITMAP_ROW_BUFF | 1 << 18 | 1 << 21 | 1 << 26 | 1U << 31},
     {.DMACCLLI = &LLI_bitmap[0],
      // Set source address for LLI
-     .DMACCSrcAddr = (uint32_t)(bmp_buff + BITMAP_ROW_BUFF),
+     .DMACCSrcAddr = (bmp_buff + BITMAP_ROW_BUFF),
      // Set destination address for LLI
-     .DMACCDestAddr = (uint32_t)&LPC_DAC->DACR,
+     .DMACCDestAddr = (void*)&LPC_DAC->DACR,
      .DMACCControl = BITMAP_ROW_BUFF | 1 << 18 | 1 << 21 | 1 << 26 | 1U << 31}};
 static volatile uint32_t bmp_idx = 0;
 static volatile uint32_t bmp_row_idx = 0;
@@ -50,9 +50,9 @@ static uint16_t buff[FSAMPLE];
 static const LLI_t LLI = {
     .DMACCLLI = &LLI,
     // Set source address for LLI
-    .DMACCSrcAddr = (uint32_t)buff,
+    .DMACCSrcAddr = buff,
     // Set destination address for LLI
-    .DMACCDestAddr = (uint32_t)&LPC_DAC->DACR,
+    .DMACCDestAddr = (void*)&LPC_DAC->DACR,
     .DMACCControl = FSAMPLE | 1 << 18 | 1 << 21 | 1 << 26 // | 1U << 31;
 };
 
@@ -170,7 +170,7 @@ void GENCTRL_bitmap() {
 void GENCTRL_load_bitmap_row(uint32_t bmp_row, uint32_t bmp_row_idx) {
     for (uint32_t i = 0; i < BITMAP_SIZE; i++) {
         uint32_t mask = 1 << i;
-        bitmap[bmp_row_idx][i] = (mask & bmp_row) >> i;
+        bitmap[BITMAP_SIZE - bmp_row_idx - 1][BITMAP_SIZE - i - 1] = (mask & bmp_row) >> i;
     }
 }
 
