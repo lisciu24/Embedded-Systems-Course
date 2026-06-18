@@ -1,11 +1,16 @@
 #include "tokenizer.h"
+#ifndef _TOK_TEST_
 #include "LPC17xx.h"
 #include "generator_ctrl.h"
 #include "uart.h"
+#else
+#include "test/generator_ctrl_mock.h"
+#include "test/uart_mock.h"
+#endif
+
 #include "waves_lut.h"
 #include <ctype.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 /*
@@ -40,13 +45,14 @@ typedef enum {
     PARSE_ERROR // MUST BE LAST ONE
 } token_parse_err_t;
 
-static const char *const PARSE_ERR_MSG[PARSE_ERROR] = {
+static const char *const PARSE_ERR_MSG[PARSE_ERROR + 1] = {
     [PARSE_OK] = "Parsed OK",
     [PARSE_STRING_INVALID_CHAR] = "Invalid character in string",
     [PARSE_NUM_INVALID_BASE] = "Invalid numeric base",
     [PARSE_NUM_INVALID_CHAR] = "Invalid character in number",
     [PARSE_NUM_INVALID_TOKEN_TYPE] = "Invalid token type for number",
-    [PARSE_NUM_OVERFLOW] = "Numeric overflow"};
+    [PARSE_NUM_OVERFLOW] = "Numeric overflow",
+    [PARSE_ERROR] = "Invalid character"};
 
 typedef struct {
     token_type_t type;
@@ -110,7 +116,7 @@ static uint32_t cmd_bitmap(uint32_t argc, arg_t argv[]) {
     for (uint32_t i = 0; i < argc; i++) {
         switch (argv[i].type) {
         case ARG_NUMBER:
-            if (argv[i].val.num < (1 << BITMAP_SIZE)) {
+            if (argv[i].val.num < 1 << BITMAP_SIZE) {
                 GENCTRL_load_bitmap_row(argv[i].val.num, bmp_row_idx);
                 if (++bmp_row_idx == BITMAP_SIZE) {
                     bmp_row_idx = 0;
@@ -129,7 +135,7 @@ static uint32_t cmd_bitmap(uint32_t argc, arg_t argv[]) {
             } else {
                 err = 1;
             }
-			break;
+            break;
         default:
             err = 1;
             break;
@@ -265,6 +271,7 @@ static const char *get_next_token(const char *cursor, token_t *token) {
                 state = LEX_STATE_READ_ERROR;
                 token->type = TOKEN_UNKNOWN;
                 token->err = PARSE_ERROR;
+                token->length = cursor - token->start;
             }
             break;
 
@@ -305,7 +312,7 @@ static const char *get_next_token(const char *cursor, token_t *token) {
         token->length = cursor - token->start;
     }
 
-    return cursor + 1;
+    return *cursor ? cursor + 1 : cursor;
 }
 
 static void token_parse_err_msg(const char *cmd, uint32_t token_num,
@@ -316,6 +323,7 @@ static void token_parse_err_msg(const char *cmd, uint32_t token_num,
     }
     UART_write_string("Error parsing token #");
     UART_write_int(token_num);
+    UART_write_string(" ");
     UART_write_line(PARSE_ERR_MSG[token->err]);
     UART_write_line(cmd);
     const char *tmp = cmd;
@@ -345,7 +353,7 @@ void CMD_parse(const char *cmd) {
             parse_cmd_error = 1;
         } else {
             strncpy(cmd_buff, token.start, token.length);
-			cmd_buff[token.length] = '\0';
+            cmd_buff[token.length] = '\0';
             cmd_token = token;
             cmd_token.start = cmd_buff;
         }
@@ -396,20 +404,15 @@ void CMD_parse(const char *cmd) {
             switch (cmds[i].cmd_type) {
             case CMD_GEN_WAVE: {
                 uint32_t args_ok = 1;
-                if (argc != 2) {
-                    args_ok = 0;
-                    UART_write_line(
-                        "Error: invalid number of arguments, expected 2!");
-                }
                 if (argv[0].type != ARG_NUMBER) {
                     args_ok = 0;
-                    UART_write_line(
-                        "Error: invalid frequency, expected number!");
+                    UART_write_line("Error: invalid frequency (first arg), "
+                                    "expected number!");
                 }
                 if (argv[1].type != ARG_NUMBER) {
                     args_ok = 0;
-                    UART_write_line(
-                        "Error: invalid amplitude, expected number!");
+                    UART_write_line("Error: invalid amplitude (second arg), "
+                                    "expected number!");
                 }
 
                 if (args_ok)
