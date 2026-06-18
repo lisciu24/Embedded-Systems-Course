@@ -108,6 +108,7 @@ static void msg_help() {
 
 static void cmd_help(uint32_t argc, arg_t argv[]) { msg_help(); }
 static void cmd_start(uint32_t argc, arg_t argv[]) { GENCTRL_start(); }
+static void cmd_startbmp(uint32_t argc, arg_t argv[]) { GENCTRL_bitmap(); }
 static void cmd_stop(uint32_t argc, arg_t argv[]) { GENCTRL_stop(); }
 
 static uint32_t bmp_row_idx = 0;
@@ -146,7 +147,7 @@ static uint32_t cmd_bitmap(uint32_t argc, arg_t argv[]) {
 
     if (err) {
         UART_write_string("Expected integer value in range [0, ");
-        UART_write_int(2 << BITMAP_SIZE);
+        UART_write_int(1 << BITMAP_SIZE);
         UART_write_line("]");
         UART_write_line("Send 'Q' to quit BMP mode");
     }
@@ -165,6 +166,7 @@ static const cmd_t cmds[] = {
     {"TRIANGLE", CMD_GEN_WAVE, .wave_lut = triangle_lut},
     {"HELP", CMD_FUN, .fun = cmd_help},
     {"START", CMD_FUN, .fun = cmd_start},
+	{"STARTBMP", CMD_FUN, .fun = cmd_startbmp},
     {"STOP", CMD_FUN, .fun = cmd_stop},
     {"BITMAP", CMD_FUN_SEQ, .fun_seq = cmd_bitmap}};
 
@@ -404,12 +406,12 @@ void CMD_parse(const char *cmd) {
             switch (cmds[i].cmd_type) {
             case CMD_GEN_WAVE: {
                 uint32_t args_ok = 1;
-                if (argv[0].type != ARG_NUMBER) {
+                if (argc >= 1 && argv[0].type != ARG_NUMBER) {
                     args_ok = 0;
                     UART_write_line("Error: invalid frequency (first arg), "
                                     "expected number!");
                 }
-                if (argv[1].type != ARG_NUMBER) {
+                if (argc >= 2 && argv[1].type != ARG_NUMBER) {
                     args_ok = 0;
                     UART_write_line("Error: invalid amplitude (second arg), "
                                     "expected number!");

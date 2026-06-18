@@ -115,6 +115,7 @@ void freq_up_button_callback(void) {
 
     UART_write_string("FREQ: ");
     UART_write_int(freq_values[freq_idx]);
+	UART_write_string("\r\n");
 	
 	SYSTICK_wait(200);
 }
@@ -129,6 +130,7 @@ void freq_down_button_callback(void) {
 
     UART_write_string("FREQ: ");
     UART_write_int(freq_values[freq_idx]);
+	UART_write_string("\r\n");
 	
 	SYSTICK_wait(200);
 }
@@ -284,9 +286,9 @@ void init_interface(void) {
         Point tp = TP_get_mean_XY();
         Point lcd = TP_to_LCD(tp);
 
-        char buf[64];
-        sprintf(buf, "lx: %d\tly: %d\r\n", lcd.x, lcd.y);
-        UART_write_string(buf);
+        //char buf[64];
+        //sprintf(buf, "lx: %d\tly: %d\r\n", lcd.x, lcd.y);
+        //UART_write_string(buf);
 
         // check if any button is clicked
         for (uint32_t i = 0; i < BUTTON_COUNT; i++) {
