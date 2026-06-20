@@ -298,7 +298,7 @@ void init_interface(void) {
         // touch check inside drawing area
         if (lcd.x >= DRAW_MIN_X && lcd.x <= DRAW_MAX_X && lcd.y >= DRAW_MIN_Y &&
             lcd.y <= DRAW_MAX_Y) {
-            UART_write_string("DRAW\r\n");
+            //UART_write_string("DRAW\r\n");
             draw_pixel(lcd.x, lcd.y, LCDBlack);
         }
     }

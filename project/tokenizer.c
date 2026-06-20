@@ -362,7 +362,7 @@ void CMD_parse(const char *cmd) {
     }
 
     uint32_t argc = 0;
-    arg_t argv[MAX_ARG_COUNT];
+    arg_t argv[MAX_ARG_COUNT] = {0};
 
     for (; argc < MAX_ARG_COUNT; argc++) {
         cursor = get_next_token(cursor, &token);
@@ -406,12 +406,17 @@ void CMD_parse(const char *cmd) {
             switch (cmds[i].cmd_type) {
             case CMD_GEN_WAVE: {
                 uint32_t args_ok = 1;
-                if (argc >= 1 && argv[0].type != ARG_NUMBER) {
+				if (argc !=  2) {
+					args_ok = 0;
+					UART_write_line("Error: expected two arguments");
+				}
+				
+                if (argc < 1 || argv[0].type != ARG_NUMBER) {
                     args_ok = 0;
                     UART_write_line("Error: invalid frequency (first arg), "
-                                    "expected number!");
+                                    "expected  number!");
                 }
-                if (argc >= 2 && argv[1].type != ARG_NUMBER) {
+                if (argc < 2 || argv[1].type != ARG_NUMBER) {
                     args_ok = 0;
                     UART_write_line("Error: invalid amplitude (second arg), "
                                     "expected number!");
