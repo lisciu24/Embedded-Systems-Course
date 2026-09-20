@@ -23,4 +23,4 @@ The project was utilizes three main modules:
  * UART/Command parser - communication with PC, decoding and handling received UART commands.
  * Function generator - generating pre-loaded functions or drawn on LCD using DMA and DAC.
 
-Whole project is described in detail (in Polish) in project report file in project directory. 
+Whole project is described in detail (in Polish) in project_report.pdf. 
